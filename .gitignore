@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.*
+!.env.example
+data/raw/*
+data/snapshots/*
+data/exports/*
+data/reviews/*
+data/handoffs/*
+output/*
+!data/raw/.gitkeep
+!data/snapshots/.gitkeep
+!data/exports/.gitkeep
+!output/.gitkeep

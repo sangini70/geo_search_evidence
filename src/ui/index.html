@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>GEO Search Evidence Collector</title><link rel="stylesheet" href="/styles.css" /></head>
+  <body><main class="shell">
+    <header><p class="eyebrow">GEO SEARCH EVIDENCE COLLECTOR</p><h1>RAW Evidence Collection</h1><p class="intro">Collection 실행과 SEARCH EVIDENCE PACK 검토를 분리합니다.</p></header>
+    <section class="status-card" aria-live="polite"><span id="status" class="status">확인 중</span><dl><div><dt>Stage</dt><dd id="stage">-</dd></div><div><dt>Source Preflight</dt><dd id="preflight">-</dd></div><div><dt>RAW Evidence</dt><dd id="raw-status">대기</dd></div><div><dt>Competition Ratio</dt><dd id="ratio">NOT_CONFIGURED</dd></div></dl></section>
+    <section class="research-input-card" aria-labelledby="research-input-title">
+      <p class="eyebrow">SEQUENTIAL RESEARCH INPUT</p>
+      <h2 id="research-input-title">Research Context 입력</h2>
+      <p class="muted">입력 확인만 수행합니다. Search Evidence Collection은 기존 버튼으로 별도 실행됩니다.</p>
+      <div class="research-step" id="step-1">
+        <div class="step-heading"><h3>STEP 1 — Hub Context</h3><span id="step-1-status" class="input-status">입력 필요</span></div>
+        <label for="hub-seed">Hub Seed / Hub Topic</label><input id="hub-seed" placeholder="원달러 환율과 달러 가치의 변동 구조" />
+        <label for="hub-story">Hub Story</label><textarea id="hub-story" rows="4" placeholder="Hub가 무엇을 이해시키려는지 입력하세요."></textarea>
+        <label for="story-direction">Story Direction</label><textarea id="story-direction" rows="4" placeholder="Hub가 어떤 방향으로 Knowledge를 전개하려는지 입력하세요."></textarea>
+        <button id="confirm-hub-context" type="button">Hub Context 확인</button>
+      </div>
+      <div class="research-step" id="step-2">
+        <div class="step-heading"><h3>STEP 2 — Planner Hypothesis</h3><span id="step-2-status" class="input-status">입력 필요</span></div>
+        <p class="muted">Network Planner 1차 결과를 원문 그대로 입력합니다.</p>
+        <label for="planner-hypothesis">Planner Hypothesis</label><textarea id="planner-hypothesis" rows="7" placeholder="planner_hypothesis_raw"></textarea>
+        <button id="confirm-planner-hypothesis" type="button" disabled>Planner Hypothesis 확인</button>
+      </div>
+      <div class="research-step" id="step-3">
+        <div class="step-heading"><h3>STEP 3 — Reviewer Research Direction</h3><span id="step-3-status" class="input-status">입력 필요</span></div>
+        <p class="muted">Strategy Planner Reviewer 결과를 원문 그대로 입력합니다.</p>
+        <label for="reviewer-direction">Reviewer Research Direction</label><textarea id="reviewer-direction" rows="7" placeholder="reviewer_research_direction_raw"></textarea>
+        <button id="confirm-reviewer-direction" type="button" disabled>Reviewer Direction 확인</button>
+      </div>
+      <div id="research-ready" class="research-ready" role="status" aria-live="polite" hidden>Research Context 준비 완료</div>
+      <div id="research-seeds-panel" class="research-seeds-panel" hidden>
+        <div class="step-heading"><h3>STEP 4 — Research Seeds</h3><span id="research-seeds-status" class="input-status">생성 전</span></div>
+        <p class="muted">Hub Context, Planner Hypothesis, Reviewer Research Direction을 기준으로 실제 Search Evidence 조사에 사용할 Research Seed 후보입니다.</p>
+        <div class="seed-actions"><button id="generate-research-seeds" type="button">Research Seed 생성</button><button id="confirm-all-research-seeds" type="button">전체 CONFIRMED</button><button id="reset-all-research-seeds" type="button">전체 PROPOSED로 초기화</button></div>
+        <p id="research-seeds-message" class="muted">Research Context 확인 후 생성할 수 있습니다.</p>
+        <div class="seed-summary"><span>PROPOSED <strong id="seed-proposed-count">0</strong></span><span>CONFIRMED <strong id="seed-confirmed-count">0</strong></span><span>EXCLUDED <strong id="seed-excluded-count">0</strong></span></div>
+        <div class="table-wrap"><table><thead><tr><th>Research Seed</th><th>Source</th><th>Reason</th><th>Status</th></tr></thead><tbody id="research-seeds-body"></tbody></table></div>
+        <p id="research-seeds-ready" class="research-ready" hidden>Research Seeds 준비 완료</p>
+      </div>
+    </section>
+    <section class="seed-card"><p class="eyebrow">LEGACY / MANUAL COLLECTION</p><label for="seed">Hub Seed Keyword</label><input id="seed" value="달러" /><button id="collect" type="button">Search Evidence 수집</button></section>
+    <section class="review-card"><div class="review-heading"><div><p class="eyebrow">SEARCH EVIDENCE PACK</p><h2>Result / Review</h2></div><div class="pack-loader"><label for="pack-id">Collection ID<input id="pack-id" placeholder="col_..." /></label><button id="load-pack" type="button">Pack 조회</button></div></div>
+      <p id="review-message" class="muted">검토할 Pack의 Collection ID를 입력하세요.</p>
+      <div id="review" hidden>
+        <div class="summary-grid"><div><span>Collection</span><strong id="summary-collection">-</strong></div><div><span>Hub Seed</span><strong id="summary-seed">-</strong></div><div><span>Status</span><strong id="summary-status">-</strong></div><div><span>Candidates</span><strong id="summary-candidates">-</strong></div><div><span>HUB_SEED</span><strong id="summary-hub">-</strong></div><div><span>RELATED_KEYWORD</span><strong id="summary-related">-</strong></div><div><span>Evidence</span><strong id="summary-evidence">-</strong></div><div><span>Metrics</span><strong id="summary-metrics">-</strong></div><div><span>Search Ads</span><strong id="summary-search-ads">-</strong></div><div><span>WEB</span><strong id="summary-web">-</strong></div><div><span>Trend</span><strong id="summary-trend">-</strong></div><div><span>Competition Ratio</span><strong id="summary-ratio">-</strong></div></div>
+        <div class="review-actions"><span>Review Version: <strong id="review-version">NEW</strong></span><select id="review-version-select"><option value="">LATEST</option></select><button id="load-review" type="button">Review 조회</button><button id="save-review" type="button">Review 저장</button><button id="create-handoff" type="button">GEO Handoff 생성</button><span id="review-save-status" class="review-save-status" role="status" aria-live="polite"></span><span>SELECTED <strong id="selected-count">0</strong> · EXCLUDED <strong id="excluded-count">0</strong> · UNDECIDED <strong id="undecided-count">0</strong></span></div>
+        <div class="controls"><label>Keyword Search<input id="keyword-search" placeholder="raw / normalized keyword" /></label><label>Role<select id="role-filter"><option>ALL</option></select></label><label>Total Status<select id="total-filter"><option>ALL</option></select></label><label>Provider Competition<select id="competition-filter"><option>ALL</option></select></label><label>WEB<select id="web-filter"><option>ALL</option></select></label><label>Sort<select id="sort-field"><option value="keyword">Keyword</option><option value="pcValue">PC Search Volume</option><option value="mobileValue">Mobile Search Volume</option><option value="totalValue">Total Search Volume</option><option value="competition">Provider Competition</option></select></label><label>Direction<select id="sort-direction"><option value="asc">ASC</option><option value="desc">DESC</option></select></label></div>
+        <p class="muted">표시 행: <strong id="result-count">0 / 0</strong> · 정렬은 검토 편의용이며 Ranking이나 추천이 아닙니다.</p><div class="table-wrap"><table><thead><tr><th>Keyword</th><th>Role</th><th>PC</th><th>Mobile</th><th>Total</th><th>Total Status</th><th>Provider Competition</th><th>WEB</th><th>Trend</th><th>Source / Provider</th><th>Decision</th><th>Reviewer Note</th><th>Details</th></tr></thead><tbody id="review-body"></tbody></table></div>
+      </div>
+    </section>
+  </main><script type="module" src="/app.mjs?v=phase3-review"></script></body>
+</html>

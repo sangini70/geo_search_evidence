@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { createReviewRows, filterReviewRows, sortReviewRows } from "../src/ui/review-model.mjs";
+import { readSearchEvidencePack } from "../src/repositories/pack-repository.mjs";
+
+const pack = await readSearchEvidencePack("col_1790695616409");
+const rows = createReviewRows(pack);
+assert.equal(rows.length, 509);
+assert.equal(rows.filter((row) => row.role === "HUB_SEED").length, 1);
+assert.equal(rows.filter((row) => row.role === "RELATED_KEYWORD").length, 508);
+assert.equal(rows.find((row) => row.keyword === "달러").webStatus, "AVAILABLE");
+assert.equal(rows.filter((row) => row.role === "RELATED_KEYWORD").every((row) => row.webStatus === "NOT_COLLECTED"), true);
+assert.equal(rows.filter((row) => row.totalStatus === "NOT_CALCULABLE").length, 162);
+const searched = filterReviewRows(rows, { search: "달러환율" });
+assert.ok(searched.length > 0);
+assert.ok(searched.some((row) => row.keyword === "달러환율"));
+assert.equal(filterReviewRows(rows, { role: "HUB_SEED" }).length, 1);
+assert.equal(filterReviewRows(rows, { totalStatus: "NOT_CALCULABLE" }).length, 162);
+assert.equal(filterReviewRows(rows, { webStatus: "NOT_COLLECTED" }).length, 508);
+assert.equal(sortReviewRows(rows, "totalValue", "desc")[0].totalValue >= sortReviewRows(rows, "totalValue", "desc")[1].totalValue, true);
+assert.equal(rows.find((row) => row.keyword === "화폐경매").pcRawValue, "< 10");
+assert.equal(JSON.stringify(pack).includes("raw_payload"), false);
+console.log("Review model tests passed.");
