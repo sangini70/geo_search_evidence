@@ -191,6 +191,9 @@ export function buildPlannerDecisionBrief({ consumerHandoff, consumerHandoffPath
       representative_entrance_count: consumerHandoff.search_demand_summary?.representative_entrances?.length || 0,
       relationship_view: buildRelationshipView(relationships),
       unclustered_summary: buildUnclusteredSummary(consumerHandoff.search_demand_summary?.unclustered),
+      planner_hypothesis_evidence: consumerHandoff.search_demand_summary?.planner_hypothesis_evidence || { status: "REVIEW_REQUIRED", items: [] },
+      reviewer_direction_evidence: consumerHandoff.search_demand_summary?.reviewer_direction_evidence || { status: "REVIEW_REQUIRED", items: [] },
+      new_demand_candidates: consumerHandoff.search_demand_summary?.new_demand_candidates || [],
       grounded_question_summary: {
         total: consumerHandoff.search_demand_summary?.grounded_questions?.count || 0,
         planner_user_questions: plannerQuestions,
@@ -200,6 +203,7 @@ export function buildPlannerDecisionBrief({ consumerHandoff, consumerHandoffPath
     evidence_limitation_summary: buildEvidenceLimitations(consumerHandoff),
     planner_judgment_required: consumerHandoff.planner_judgment_required || [],
     lineage: {
+      ...consumerHandoff.lineage,
       source_consumer_handoff: { path: consumerHandoffPath, version: consumerHandoff.consumer_handoff_version },
       full_handoff_reference: consumerHandoff.lineage?.full_handoff_reference || null,
       context_reference: consumerHandoff.lineage?.context_reference || null,

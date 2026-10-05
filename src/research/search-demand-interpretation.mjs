@@ -82,6 +82,78 @@ function buildContextIndex(researchContext) {
 
 function contextFor(value, index) { return index.byKeyword.get(compact(value)) || null; }
 
+function contextSeedsByType(contextIndex, sourceType) {
+  return [...contextIndex.byKeyword.values()].filter((item) => item.seed.source_types?.includes(sourceType));
+}
+
+function evidenceForContextSeeds(seeds, integration, sourceType, questions) {
+  const keywords = integration?.session_keywords || [];
+  const items = seeds.map(({ seed }) => {
+    const keyword = keywords.find((item) => compact(item.normalized_keyword) === compact(seed.normalized_seed_text));
+    const evidenceIds = unique(keyword?.source_evidence_ids || []);
+    const metricIds = unique(keyword?.source_metric_ids || []);
+    const evidenceStatus = evidenceIds.length > 0 ? "EVIDENCE_SUPPORTED" : metricIds.length > 0 ? "EVIDENCE_WEAK" : "REVIEW_REQUIRED";
+    return {
+      seed: seed.normalized_seed_text,
+      source_type: sourceType,
+      source_references: seed.source_references || [],
+      reviewer_stages: [...(seed.reviewer_stages || [])],
+      matched_keyword_id: keyword?.keyword_ids?.[0] || null,
+      matched_keyword: keyword?.normalized_keyword || null,
+      source_evidence_ids: evidenceIds,
+      source_metric_ids: metricIds,
+      collection_ids: unique(keyword?.collection_ids || []),
+      evidence_status: evidenceStatus,
+      grounded_questions: questions.filter((question) => question.source_type === sourceType && compact(question.text).includes(compact(seed.normalized_seed_text))),
+    };
+  });
+  const supported = items.filter((item) => item.evidence_status === "EVIDENCE_SUPPORTED").length;
+  const weak = items.filter((item) => item.evidence_status === "EVIDENCE_WEAK").length;
+  return {
+    context_type: sourceType,
+    status: !items.length ? "REVIEW_REQUIRED" : supported === items.length ? "EVIDENCE_SUPPORTED" : supported > 0 || weak > 0 ? "EVIDENCE_WEAK" : "REVIEW_REQUIRED",
+    items,
+    source_evidence_ids: unique(items.flatMap((item) => item.source_evidence_ids)),
+    source_metric_ids: unique(items.flatMap((item) => item.source_metric_ids)),
+    collection_ids: unique(items.flatMap((item) => item.collection_ids)),
+  };
+}
+
+function hubContextMatches(keyword, researchContext, contextIndex) {
+  const explicit = contextIndex.byKeyword.get(compact(keyword))?.sources.has("HUB_CONTEXT");
+  if (explicit) return ["HUB_CONTEXT_SEED"];
+  const hubText = [researchContext?.hub_context?.hub_story, researchContext?.hub_context?.story_direction, researchContext?.hub_context?.raw_text]
+    .filter(Boolean).join(" ");
+  const candidate = compact(keyword);
+  if (!candidate || candidate.length < 2) return [];
+  return compact(hubText).includes(candidate) ? ["HUB_CONTEXT_TEXT_MATCH"] : [];
+}
+
+function buildNewDemandCandidates({ unclusteredKeywordIds, integration, researchContext, contextIndex }) {
+  const keywords = integration?.session_keywords || [];
+  return unclusteredKeywordIds.flatMap((keywordId) => {
+    const keyword = keywords.find((item) => (item.keyword_ids || []).includes(keywordId));
+    if (!keyword || !keyword.source_evidence_ids?.length) return [];
+    const declared = contextFor(keyword.normalized_keyword, contextIndex);
+    if (declared) return [];
+    const hubReferences = hubContextMatches(keyword.normalized_keyword, researchContext, contextIndex);
+    if (!hubReferences.length) return [];
+    return [{
+      discovery_type: "NEW_DEMAND_DISCOVERY",
+      keyword_id: keywordId,
+      keyword: keyword.normalized_keyword,
+      status: "REVIEW_REQUIRED",
+      reason: "Observed in collected Search Evidence, not declared in Planner/Reviewer context, and linked to Hub Context.",
+      hub_context_references: hubReferences,
+      source_evidence_ids: unique(keyword.source_evidence_ids || []),
+      source_metric_ids: unique(keyword.source_metric_ids || []),
+      collection_ids: unique(keyword.collection_ids || []),
+      provenance: { research_target_ids: unique(keyword.research_target_ids || []), collection_ids: unique(keyword.collection_ids || []) },
+      final_knowledge_decision: "NETWORK_PLANNER_REQUIRED",
+    }];
+  });
+}
+
 function supportedSameDemand(leftValue, rightValue, contextIndex) {
   const left = contextFor(leftValue, contextIndex);
   const right = contextFor(rightValue, contextIndex);
@@ -192,6 +264,8 @@ export function buildInterpretedSearchDemandCompression({ compression, integrati
   const allKeywordIds = unique(compression.lineage?.source_keyword_ids || []);
   const unclustered = allKeywordIds.filter((id) => !clusteredIds.has(id));
   const sourceIntegration = compression.source_integration || {};
+  const plannerHypothesisEvidence = evidenceForContextSeeds(contextSeedsByType(contextIndex, "PLANNER_HYPOTHESIS"), integration, "PLANNER_HYPOTHESIS", contextIndex.questions);
+  const reviewerDirectionEvidence = evidenceForContextSeeds(contextSeedsByType(contextIndex, "REVIEWER_RESEARCH_DIRECTION"), integration, "REVIEWER_RESEARCH_DIRECTION", contextIndex.questions);
   return {
     compression_id: `${compression.compression_id}_interpreted`,
     compression_version: null,
@@ -221,6 +295,9 @@ export function buildInterpretedSearchDemandCompression({ compression, integrati
     grounded_question_links: interpreted.flatMap((item) => item.status === "SUPPORTED" && item.interpretation_basis?.grounded_questions ? item.interpretation_basis.grounded_questions.map((question) => ({ relation_id: item.relation_id, status: "SUPPORTED", source_type: question.source_type, line_number: question.line_number, question: question.text })) : []),
     clustered_keyword_ids: [...clusteredIds],
     unclustered_keyword_ids: unclustered,
+    planner_hypothesis_evidence: plannerHypothesisEvidence,
+    reviewer_direction_evidence: reviewerDirectionEvidence,
+    new_demand_candidates: buildNewDemandCandidates({ unclusteredKeywordIds: unclustered, integration, researchContext, contextIndex }),
     coverage_summary: compression.coverage_summary || {},
     lineage: {
       source_keyword_ids: allKeywordIds,
@@ -237,6 +314,7 @@ export function buildInterpretedSearchDemandCompression({ compression, integrati
       supplied: Boolean(researchContext),
       extracted_seed_count: [...contextIndex.byKeyword.values()].length,
       grounded_question_count: contextIndex.questions.length,
+      hub_intent_present: Boolean(researchContext?.hub_context),
     },
   };
 }

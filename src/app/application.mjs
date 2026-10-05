@@ -27,6 +27,7 @@ import { saveInitialDiscoveryEvaluation, readInitialDiscoveryEvaluation } from "
 import { readCollectionSnapshot } from "../repositories/snapshot-repository.mjs";
 import { projectFollowUpResearch } from "../research/follow-up-research-projection.mjs";
 import { saveFollowUpResearchProjection, readFollowUpResearchProjection } from "../repositories/follow-up-research-projection-repository.mjs";
+import { RESEARCH_E2E_STATUS, runResearchSessionE2E } from "./research-e2e-orchestrator.mjs";
 
 const snapshotRoot = dataDirectory("snapshots");
 
@@ -138,6 +139,8 @@ export async function createFollowUpResearchProjectionForSession({ researchSessi
 export function getFollowUpResearchProjectionForSession(researchSessionId) {
   return readFollowUpResearchProjection(researchSessionId);
 }
+
+export { RESEARCH_E2E_STATUS, runResearchSessionE2E };
 
 export async function createSessionEvidenceIntegration({ researchSessionId, targetResults, researchContext } = {}) {
   let contextResult = await readResearchSessionContext(researchSessionId);

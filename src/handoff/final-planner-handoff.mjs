@@ -129,6 +129,9 @@ export function buildFinalPlannerHandoff({ context, integration, compression, so
         details: unclusteredKeywordIds.map((keywordId) => unclusteredProjection({ keywordId, integration, relationships })),
       },
       relationship_candidates: relationshipCandidates,
+      planner_hypothesis_evidence: compression.planner_hypothesis_evidence || { status: "REVIEW_REQUIRED", items: [] },
+      reviewer_direction_evidence: compression.reviewer_direction_evidence || { status: "REVIEW_REQUIRED", items: [] },
+      new_demand_candidates: compression.new_demand_candidates || [],
       source_evidence_status: (integration.collection_results || []).map(sourceEvidenceStatus),
     },
     evidence_coverage: {

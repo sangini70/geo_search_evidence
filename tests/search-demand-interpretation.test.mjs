@@ -56,4 +56,17 @@ assert.equal(contextRelation.status, "SUPPORTED");
 assert.equal(contextResult.demand_clusters.some((cluster) => cluster.status === "SUPPORTED"), true);
 assert.equal(contextResult.grounded_question_links.length, 0);
 assert.equal(contextResult.clustered_keyword_ids.length + contextResult.unclustered_keyword_ids.length, 4);
+assert.equal(contextResult.planner_hypothesis_evidence.status, "EVIDENCE_SUPPORTED");
+assert.equal(contextResult.reviewer_direction_evidence.status, "EVIDENCE_SUPPORTED");
+assert.equal(contextResult.new_demand_candidates.length, 0);
+
+const newDemandResult = buildInterpretedSearchDemandCompression({
+  compression: { ...compression, lineage: { ...compression.lineage, source_keyword_ids: [...compression.lineage.source_keyword_ids, "kw-5"], source_evidence_ids: [...compression.lineage.source_evidence_ids, "ev-5"] } },
+  integration: { ...integration, session_keywords: [...integration.session_keywords, { normalized_keyword: "hub new demand", keyword_ids: ["kw-5"], collection_ids: ["col-1"], source_evidence_ids: ["ev-5"], source_metric_ids: [] }] },
+  researchContext: { hub_context: { hub_story: "hub new demand context" }, planner_hypothesis: { raw_text: "MAIN KEYWORD\n- planner demand" }, reviewer_research_direction: { raw_text: "Search Entrance:\n- reviewer demand" } },
+});
+assert.equal(newDemandResult.new_demand_candidates.length, 1);
+assert.equal(newDemandResult.new_demand_candidates[0].keyword_id, "kw-5");
+assert.equal(newDemandResult.new_demand_candidates[0].status, "REVIEW_REQUIRED");
+assert.equal(newDemandResult.lineage.source_evidence_ids.includes("ev-5"), true);
 console.log("Search Demand Interpretation tests passed");

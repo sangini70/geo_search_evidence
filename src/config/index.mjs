@@ -17,7 +17,16 @@ function loadDotEnv() {
 }
 
 const dotEnv = loadDotEnv();
-const env = (name) => process.env[name] ?? dotEnv[name] ?? "";
+
+export function getEnvironmentValue(name) {
+  return process.env[name] ?? dotEnv[name] ?? "";
+}
+
+for (const [name, value] of Object.entries(dotEnv)) {
+  if (process.env[name] === undefined) process.env[name] = value;
+}
+
+const env = getEnvironmentValue;
 
 export const config = Object.freeze({
   port: Number(env("GEO_APP_PORT") || 4173),

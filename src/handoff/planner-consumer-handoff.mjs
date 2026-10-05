@@ -133,7 +133,13 @@ export function buildPlannerConsumerHandoff({ fullHandoff, fullHandoffPath = nul
   if (!fullHandoff?.research_session_id || !fullHandoff?.handoff_version) throw new Error("PLANNER_CONSUMER_HANDOFF_INPUT_REQUIRED");
   const findings = fullHandoff.search_demand_findings || {};
   const keywords = keywordMap(fullHandoff);
-  const lineageIncomplete = fullHandoff.research_summary?.source_research_session_id == null;
+  const sourceLineage = fullHandoff.lineage || {};
+  const sourceCollectionIds = sourceLineage.source_collection_ids || fullHandoff.research_summary?.collection_ids || [];
+  const sourceEvidenceIds = sourceLineage.source_evidence_ids || [];
+  const sourceMetricIds = sourceLineage.source_metric_ids || [];
+  const rawReferences = sourceLineage.raw_references || [];
+  const lineageIncomplete = sourceCollectionIds.length === 0
+    || (sourceEvidenceIds.length === 0 && sourceMetricIds.length === 0 && rawReferences.length === 0);
   return {
     consumer_handoff_id: `planner_consumer_handoff_${fullHandoff.research_session_id}`,
     consumer_handoff_version: null,
@@ -174,6 +180,9 @@ export function buildPlannerConsumerHandoff({ fullHandoff, fullHandoffPath = nul
         items: compactRelationships(fullHandoff),
       },
       unclustered: compactUnclustered(fullHandoff),
+      planner_hypothesis_evidence: fullHandoff.search_demand_findings?.planner_hypothesis_evidence || { status: "REVIEW_REQUIRED", items: [] },
+      reviewer_direction_evidence: fullHandoff.search_demand_findings?.reviewer_direction_evidence || { status: "REVIEW_REQUIRED", items: [] },
+      new_demand_candidates: fullHandoff.search_demand_findings?.new_demand_candidates || [],
     },
     source_evidence_summary: compactSourceEvidence(fullHandoff),
     planner_judgment_required: fullHandoff.planner_judgment_required || [],
@@ -182,10 +191,13 @@ export function buildPlannerConsumerHandoff({ fullHandoff, fullHandoffPath = nul
       context_reference: fullHandoff.lineage?.context_reference || null,
       integration_reference: fullHandoff.lineage?.integration_reference || null,
       compression_reference: fullHandoff.lineage?.compression_reference || null,
-      collection_ids: fullHandoff.lineage?.source_collection_ids || fullHandoff.research_summary?.collection_ids || [],
-      source_evidence_count: fullHandoff.lineage?.source_evidence_ids?.length || 0,
-      source_metric_count: fullHandoff.lineage?.source_metric_ids?.length || 0,
-      raw_reference_count: fullHandoff.lineage?.raw_references?.length || 0,
+      collection_ids: sourceCollectionIds,
+      source_evidence_ids: sourceEvidenceIds,
+      source_metric_ids: sourceMetricIds,
+      raw_references: rawReferences,
+      source_evidence_count: sourceEvidenceIds.length,
+      source_metric_count: sourceMetricIds.length,
+      raw_reference_count: rawReferences.length,
       status: lineageIncomplete ? "SOURCE_REFERENCE_INCOMPLETE" : "COMPLETE",
     },
   };

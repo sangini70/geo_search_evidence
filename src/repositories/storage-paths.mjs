@@ -1,11 +1,13 @@
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getEnvironmentValue } from "../config/index.mjs";
 
 const defaultDataRoot = fileURLToPath(new URL("../../data/", import.meta.url));
 
 export function getDataRoot() {
-  return process.env.GEO_DATA_ROOT?.trim()
-    ? resolve(process.env.GEO_DATA_ROOT)
+  const configuredRoot = getEnvironmentValue("GEO_DATA_ROOT").trim();
+  return configuredRoot
+    ? resolve(configuredRoot)
     : defaultDataRoot;
 }
 
@@ -14,7 +16,8 @@ export function dataDirectory(...segments) {
 }
 
 export function getBackupRoot() {
-  return process.env.GEO_BACKUP_ROOT?.trim()
-    ? resolve(process.env.GEO_BACKUP_ROOT)
+  const configuredRoot = getEnvironmentValue("GEO_BACKUP_ROOT").trim();
+  return configuredRoot
+    ? resolve(configuredRoot)
     : null;
 }

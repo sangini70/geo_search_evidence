@@ -425,6 +425,23 @@ Collector가 입력을 올바르게 이해했는지 확인할 수 있어야 한�
 
 # 9. RESEARCH CONTEXT
 
+## 9.1 CONTEXT UNDERSTANDING BOUNDARY
+
+Collector는 Hub Story / Story Direction, Network Planner 1차 Knowledge Hypothesis,
+Strategy Planner Reviewer Research Direction을 단순 문자열 또는 Keyword Source로만
+취급하지 않는다. 세 입력은 Research 시작 시 하나의 Research Context로 결합하고,
+다음 관계를 보존·해석한다.
+
+- Hub가 무엇을 설명하려는가
+- Planner가 어떤 Knowledge Hypothesis를 세웠는가
+- Planner가 어떤 Question 또는 Relationship을 가정하는가
+- Reviewer가 무엇을 왜 검증하려 하는가
+- 어떤 Search Demand가 핵심 검증 대상인가
+
+Planner Keyword와 Reviewer Keyword는 Search Evidence 자체가 아니다. 둘 다 Research를
+시작하기 위한 Hypothesis 또는 Direction이며, 실제 Evidence 수집 후 다시 Context와
+대조해야 한다.
+
 세 단계의 입력은 각각 원본을 보존한다.
 
 Collector는 이를 결합하여
@@ -504,6 +521,12 @@ Collector는 이를 임의의 SEO/GEO Score로 변환하지 않는다.
 ---
 
 # 12. BROAD DISCOVERY
+
+Reviewer Stage는 Keyword Ranking이나 우선순위 Score가 아니다. Reviewer가 어떤 Search
+Demand와 Research Direction을 먼저 검증하려 하는지 보존하는 provenance이다. Evidence
+수집 후에는 해당 방향이 실제 Search Demand에서 확인되었는지, 부분적으로만 확인되었는지,
+또는 판단 가능한 Evidence가 부족한지를 기존 Schema와 구현의 상태로 Planner Decision
+Brief에 전달한다. 별도의 거대한 Reviewer 평가 시스템은 만들지 않는다.
 
 Collector는 Reviewer가 지정한 Keyword만 조사하지 않는다.
 
@@ -871,6 +894,22 @@ Competition Ratio를 생성해서는 안 된다.
 
 # 22. SEARCH ENTRANCE ANALYSIS
 
+Representative Search Entrance는 단순 Search Volume 상위 Keyword, Top-N, 고정 개수,
+Reviewer Stage 1, 또는 임의의 GEO Score로 정하지 않는다. 가능한 경우 다음 연결을
+함께 보존하여 Planner에게 Search Evidence 차원의 대표 진입점 후보를 전달한다.
+
+- 실제 Search Demand Evidence
+- Hub 관련성
+- 반복적으로 나타나는 Search Intent 또는 Demand
+- Grounded Question 연결
+- Search Demand Cluster 연결
+- Planner / Reviewer Context 연결
+- Source / Evidence provenance
+
+Representative Search Entrance는 Final Knowledge Node 선정이 아니다. Collector는
+Evidence 차원의 후보와 근거를 전달하고, 최종 Knowledge Architecture 판단은 Network
+Planner가 수행한다.
+
 Collector는 다수의 Keyword 표현이
 어떤 Search Entrance를 형성하는지 조사한다.
 
@@ -969,6 +1008,19 @@ Cluster의 모든 중요한 판단은
 
 # 25. PLANNER HYPOTHESIS VERIFICATION
 
+Planner 1차 Knowledge Architecture는 최종 사실이 아니라 Hypothesis이다. Collector는
+실제 Search Evidence와 대조한 결과를 기존 상태와 구조로 전달한다. 문서 전용의 새로운
+Score나 상태명을 만들지 않는다. 현재 구현과 Schema에 맞춰 최소한 다음 의미를 구분할
+수 있어야 한다.
+
+- Evidence로 충분히 확인됨
+- 일부 Evidence만 확인됨
+- Evidence가 약하거나 확인되지 않음
+- 판단하기에 Evidence가 부족함
+
+이 결과는 Node 확정이나 Hub Architecture 확정이 아니며, Network Planner 2차 판단을
+위한 Evidence Projection이다.
+
 Collector는 Planner가 만든
 각 Knowledge Hypothesis와
 실제 Search Evidence를 연결한다.
@@ -1006,6 +1058,18 @@ Node 삭제
 ---
 
 # 26. NEW DEMAND DISCOVERY
+
+단순히 `unclustered_keyword`인 것만으로 New Demand로 간주하지 않는다. New Demand는
+최소한 다음 조건을 모두 만족하는 Search Demand 후보이다.
+
+- Planner Hypothesis에 명시되지 않음
+- Reviewer Research Direction에 명시되지 않음
+- 실제 Search Evidence에서 발견됨
+- Hub와 의미 있게 연결됨
+- Network Planner의 최종 판단에 영향을 줄 가능성이 있음
+
+따라서 미분류 Keyword와 의미 있는 New Demand를 구분하고, 근거와 provenance를 함께
+전달한다.
 
 Broad Discovery 또는 Deep Research 과정에서
 Planner와 Reviewer가 예상하지 못한
@@ -1121,6 +1185,24 @@ Human Review는
 
 # 30. EVIDENCE COMPRESSION
 
+Evidence Synthesis는 단순 Keyword 분류나 데이터 축약이 아니다. Search Evidence를
+Hub Context, Planner Hypothesis, Reviewer Research Direction과 다시 대조하여 다음을
+Evidence Projection으로 전달한다.
+
+- 반복적으로 나타나는 Search Demand
+- Hub와 연결되는 Search Demand
+- Representative Search Entrance 후보
+- Grounded Question
+- 중요한 Search Relationship
+- Planner Hypothesis를 지지하거나 약화시키는 Evidence
+- Reviewer Direction에서 실제 확인된 Evidence
+- 예상하지 못한 Search Demand 후보
+- Evidence 부족 또는 확인 불가능 영역
+
+현재 구현의 Search Demand Interpretation, Session Integration, Compression 구조를
+활용한다. RAW, Snapshot, Evidence, Metric, provenance, 실패와 Missing 상태는 내부
+Artifact로 보존하며 Compression은 삭제가 아니다.
+
 Collector 내부 Evidence는
 가능한 범위에서 풍부하게 보존한다.
 
@@ -1186,6 +1268,11 @@ Planner가 필요할 경우
 
 # 31. FINAL PLANNER HANDOFF
 
+Collector의 사용자-facing 최종 결과는 가능한 범위에서 하나의 Planner Decision Brief로
+전달한다. 내부 RAW, Snapshot, Evaluation, Follow-up Projection, Session Integration,
+Compression, Handoff Artifact는 검증·디버깅·감사를 위해 보존할 수 있다. Brief는 단순
+데이터 Dump가 아니라 Network Planner 2차 판단을 위한 Evidence Projection이다.
+
 Collector의 최종 운영 산출물은
 Network Planner가 사용할
 
@@ -1244,6 +1331,12 @@ Final Planner Handoff는 최소한
 ---
 
 # 33. FINAL PLANNER RESPONSIBILITY
+
+가능한 범위에서 Planner Decision Brief에는 Original Hub Intent, Planner Hypothesis
+Context, Reviewer Research Direction과 실제 Evidence, Search Demand Structure,
+Representative Search Entrance 후보, Grounded Question, 중요한 Relationship,
+Hypothesis Evidence, New 또는 Unexpected Demand 후보, Evidence Limitations,
+Provenance와 Lineage를 포함한다.
 
 Final Planner Handoff를 받은
 GEO Network Planner가 최종적으로 판단한다.
@@ -1510,6 +1603,24 @@ Final Planner Handoff
 
 # 42. FINAL EXECUTION FLOW
 
+정상 운영 UX는 다음과 같다.
+
+Hub Story / Story Direction
++ Network Planner 1차
++ Strategy Planner Reviewer
+→ Collector 자동 Research
+→ Planner Decision Brief 1개
+
+정상 실행에서는 사용자가 Research Target, Initial Discovery, Deep Research, Follow-up,
+Compression 대상을 중간에 필수로 직접 선택하거나 승인하지 않아도 Collector가 기존
+단계와 Artifact를 자동으로 연결한다. 내부 단계와 Artifact는 감사와 디버깅을 위해
+보존할 수 있다.
+
+UI 상태 유실이나 후속 단계 실패만으로 이미 실행된 Collection을 다시 실행하지 않는다.
+가능한 경우 기존 Collection, RAW, Snapshot, Evaluation, Follow-up Projection, Session
+Integration, Compression, Handoff Artifact를 재사용한다. 새로운 실제 Research Target으로
+새 Evidence Collection이 필요한 경우에만 새 Collection을 생성한다.
+
 HUB CONTEXT
 ↓
 PLANNER HYPOTHESIS
@@ -1551,6 +1662,18 @@ NETWORK PLANNER FINAL JUDGMENT
 ---
 
 # 43. CORE RULE
+
+Follow-up Research는 고정 횟수나 임의 비율(예: 20%, 40%) 때문에 실행하지 않는다.
+다음과 같이 추가 Evidence가 필요한 사유가 있을 때만 Projection한다.
+
+- 중요한 New Demand가 발견됨
+- Planner 핵심 Hypothesis의 Evidence가 부족함
+- Reviewer 핵심 Research Direction의 Evidence가 부족함
+- Hub와 강하게 연결되는 Search Entrance의 Evidence가 부족함
+- 서로 충돌하는 Evidence가 발견됨
+
+무한 Research는 허용하지 않는다. 운영상 Safety Limit이 필요하면 Research Truth가
+아닌 실행 보호 장치로 별도 취급한다.
 
 방향은 Planner와 Reviewer에게 받는다.
 
