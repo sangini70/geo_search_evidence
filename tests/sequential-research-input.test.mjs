@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 const html = await readFile(new URL("../src/ui/index.html", import.meta.url), "utf8");
 const app = await readFile(new URL("../src/ui/app.mjs", import.meta.url), "utf8");
 
-for (const id of ["hub-seed", "hub-story", "story-direction", "planner-hypothesis", "reviewer-direction", "confirm-hub-context", "confirm-planner-hypothesis", "confirm-reviewer-direction", "research-ready", "confirm-all-research-seeds", "reset-all-research-seeds"]) {
+for (const id of ["hub-seed", "hub-story", "story-direction", "planner-hypothesis", "reviewer-direction", "confirm-hub-context", "confirm-planner-hypothesis", "confirm-reviewer-direction", "research-ready", "research-context-save-status", "confirm-all-research-seeds", "reset-all-research-seeds", "collection-targets-panel", "collection-targets-status", "research-session-id", "collection-targets-count", "collection-targets-body", "collection-target-execution", "collection-target-result-details", "collection-result-search-seed", "collection-result-search-ads", "collection-result-web", "collection-result-candidates", "collection-result-evidence", "collection-result-metrics", "multi-collection-execution", "multi-collection-result", "multi-collection-summary", "multi-collection-body", "session-integration-execution", "session-integration-status", "session-integration-summary", "session-compression-execution", "session-compression-status", "session-compression-summary", "session-interpretation-execution", "session-interpretation-status", "session-interpretation-summary"]) {
   assert.match(html, new RegExp(`id=\\"${id}\\"`));
 }
 assert.match(app, /const researchInput =/);
@@ -20,9 +20,35 @@ assert.match(html, /src="\/app\.mjs\?v=phase3-review"/);
 assert.match(app, /confirmHubContextButton\.addEventListener/);
 assert.match(app, /confirmAllResearchSeedsButton\.addEventListener/);
 assert.match(app, /resetAllResearchSeedsButton\.addEventListener/);
+assert.match(app, /buildCollectionTargets/);
+assert.match(app, /createResearchSession/);
+assert.match(app, /projectCollectionRequests/);
+assert.match(app, /projectConfirmedCollectionRequests/);
+assert.match(app, /executeSingleResearchTargetCollection/);
+assert.match(app, /collectionTargetExecutionButton\.addEventListener/);
+assert.match(html, /collection-targets-table/);
 assert.match(app, /researchSeedsHeader\?\.replaceChildren/);
-assert.match(app, /\["Research Seed", "Source", "Reason", "Decision"\]/);
+assert.match(app, /\["Research Seed", "Source", "Stage", "Reason", "Decision"\]/);
 assert.doesNotMatch(app, /runtimeFixtureExportButton|researchSeedRuntimeDiagnostic|\[research-seed\]/);
 assert.doesNotMatch(app, /fetch\("\/diagnostic\/runtime-fixture"/);
 assert.equal((app.match(/fetch\("\/collect"/g) || []).length, 1);
+assert.match(app, /requestCollection\(request\.search_seed, \{/);
+assert.match(app, /research_session_id: request\.research_session_id/);
+assert.match(app, /research_target_id: request\.research_target_id/);
+assert.match(app, /researchContext/);
+assert.match(app, /sourceStatus\("NAVER_SEARCH_ADS"\)/);
+assert.match(app, /sourceStatus\("NAVER_API_HUB_WEBKR"\)/);
+assert.match(app, /collectionResult\?\.evidence\?\.length/);
+assert.match(app, /collectionResult\?\.derivedMetrics\?\.length/);
+assert.match(app, /fetch\("\/research-session\/collect"/);
+assert.match(app, /fetch\("\/research-session\/integration"/);
+assert.match(app, /fetch\("\/research-session\/context"/);
+assert.match(app, /fetch\(`\/research-session\/context\?researchSessionId=/);
+assert.match(app, /async function loadInitialResearchContext/);
+const hydrationBody = app.match(/async function loadInitialResearchContext\(\) \{([\s\S]*?)\n\}/)?.[1] || "";
+assert.doesNotMatch(hydrationBody, /renderFinalPlannerHandoffState\(\)/);
+assert.match(app, /renderFinalPlannerHandoffState\(result\)/);
+assert.match(app, /fetch\("\/research-session\/compression"/);
+assert.match(app, /fetch\("\/research-session\/compression\/interpret"/);
+assert.match(app, /research_context: researchInput/);
 console.log("Sequential Research Input tests passed.");

@@ -75,6 +75,34 @@ assert.deepEqual(boundaryCalls.map((call) => call.options.sourceRunId), ["sr_col
 assert.equal(boundaryResult.collectionId, "col_test_application_boundary");
 assert.equal(typeof collectNaverRaw, "function");
 
+const researchContext = {
+  research_session_id: "research_session_boundary",
+  research_target_id: "research_target_boundary",
+  search_seed: "dollar",
+  source_types: ["PLANNER_HYPOTHESIS", "REVIEWER_RESEARCH_DIRECTION"],
+  source_references: [{ source_type: "PLANNER_HYPOTHESIS", line_number: 7 }],
+  reviewer_stages: [1, 2],
+  reason: "Research Target provenance test",
+};
+const researchContextResult = await collectMultiSource("dollar", {
+  collectionId: "col_test_research_context",
+  persist: false,
+  researchContext,
+  searchAdsCollector,
+  webCollector,
+});
+assert.deepEqual(researchContextResult.snapshot.research_context, researchContext);
+assert.notEqual(researchContextResult.collectionId, researchContext.research_target_id);
+await assert.rejects(() => collectMultiSource("different", { persist: false, researchContext, searchAdsCollector, webCollector }), /RESEARCH_CONTEXT_SEARCH_SEED_MISMATCH/);
+
+const legacyResult = await collectMultiSource("legacy", {
+  collectionId: "col_test_legacy_without_context",
+  persist: false,
+  searchAdsCollector,
+  webCollector,
+});
+assert.equal(Object.hasOwn(legacyResult.snapshot, "research_context"), false);
+
 const partial = await runMultiSourceCollection("달러", {
   collectionId: "col_test_partial",
   persist: false,
@@ -86,6 +114,64 @@ assert.equal(partial.sourceRuns.filter((run) => run.status === "SUCCESS").length
 assert.equal(partial.sourceRuns.filter((run) => run.status === "FAILED").length, 1);
 assert.ok(partial.snapshot.evidence.some((item) => item.source_id === "NAVER_SEARCH_ADS"));
 assert.equal(partial.snapshot.errors.length, 1);
+
+const diagnosticPartial = await runMultiSourceCollection("dollar", {
+  collectionId: "col_test_diagnostic_persistence",
+  persist: false,
+  searchAdsCollector: async () => ({
+    status: "PROVIDER_REQUEST_FAILED",
+    error: {
+      type: "PROVIDER_REQUEST_FAILED",
+      status: null,
+      raw_error: {
+        error_name: "TypeError",
+        safe_error_message: "fetch failed",
+        error_code: "EAI_AGAIN",
+        failure_stage: "DNS",
+        retryable: true,
+      },
+    },
+  }),
+  webCollector,
+});
+assert.equal(diagnosticPartial.snapshot.status, "PARTIAL_SUCCESS");
+assert.deepEqual(diagnosticPartial.snapshot.errors[0].raw_error, {
+  stage: "SEARCH_DEMAND",
+  response_status: null,
+  error_name: "TypeError",
+  safe_error_message: "fetch failed",
+  error_code: "EAI_AGAIN",
+  failure_stage: "DNS",
+  retryable: true,
+});
+assert.equal(diagnosticPartial.snapshot.errors[0].retryable, true);
+assert.deepEqual(diagnosticPartial.snapshot.source_runs[0].error_diagnostic, diagnosticPartial.snapshot.errors[0].raw_error);
+
+const httpDiagnosticPartial = await runMultiSourceCollection("dollar", {
+  collectionId: "col_test_http_diagnostic_persistence",
+  persist: false,
+  searchAdsCollector: async () => ({
+    status: "PROVIDER_REQUEST_FAILED",
+    error: {
+      type: "PROVIDER_REQUEST_FAILED",
+      status: 400,
+      raw_error: {
+        error_name: "HTTPError",
+        safe_error_message: "hintKeywords is invalid",
+        error_code: "11001",
+        failure_stage: "HTTP",
+        retryable: false,
+      },
+    },
+  }),
+  webCollector,
+});
+assert.equal(httpDiagnosticPartial.snapshot.status, "PARTIAL_SUCCESS");
+assert.equal(httpDiagnosticPartial.snapshot.source_runs[0].error_diagnostic.response_status, 400);
+assert.equal(httpDiagnosticPartial.snapshot.source_runs[0].error_diagnostic.error_code, "11001");
+assert.equal(httpDiagnosticPartial.snapshot.source_runs[0].error_diagnostic.failure_stage, "HTTP");
+assert.equal(httpDiagnosticPartial.snapshot.source_runs[1].status, "SUCCESS");
+assert.equal(httpDiagnosticPartial.snapshot.evidence.length, 1);
 
 const repositoryCollectionId = `col_test_repository_${Date.now()}`;
 const repositoryRawDirectory = `data/raw/${repositoryCollectionId}`;

@@ -9,13 +9,19 @@ import { validateNaverWebSearchEvidence } from "../validators/naver-web-search-r
 import { calculateTotalSearchVolume } from "../metrics/total-search-volume-calculator.mjs";
 import { saveRawSnapshot } from "../repositories/raw-repository.mjs";
 import { saveCollectionSnapshot } from "../repositories/snapshot-repository.mjs";
+import { assertBackupPreflight } from "../repositories/backup-repository.mjs";
 import { createCanonicalKeywordRegistry } from "../core/canonical-keyword-registry.mjs";
 
 function createCollectionId() {
   return `col_${Date.now()}`;
 }
 
-function createError(idGenerator, collectionId, sourceRunId, sourceId, type, message, status = null, stage = "COLLECTION") {
+function createError(idGenerator, collectionId, sourceRunId, sourceId, type, message, status = null, stage = "COLLECTION", diagnostics = null) {
+  const rawError = { stage, response_status: status };
+  for (const field of ["error_name", "safe_error_message", "error_code", "failure_stage"]) {
+    if (diagnostics && diagnostics[field] != null) rawError[field] = diagnostics[field];
+  }
+  if (typeof diagnostics?.retryable === "boolean") rawError.retryable = diagnostics.retryable;
   return {
     error_id: idGenerator.nextErrorId(),
     collection_id: collectionId,
@@ -25,8 +31,8 @@ function createError(idGenerator, collectionId, sourceRunId, sourceId, type, mes
     error_type: type,
     message,
     occurred_at: new Date().toISOString(),
-    retryable: false,
-    raw_error: { stage, response_status: status },
+    retryable: typeof diagnostics?.retryable === "boolean" ? diagnostics.retryable : false,
+    raw_error: rawError,
   };
 }
 
@@ -46,13 +52,14 @@ function sourceRun({ sourceRunId, collectionId, sourceId, provider, product, sea
   };
 }
 
-function finalizeSourceRun(run, result, rawReference = null, errorReference = null) {
+function finalizeSourceRun(run, result, rawReference = null, errorReference = null, errorDiagnostic = null) {
   return {
     ...run,
     collected_at: new Date().toISOString(),
     status: result ? "SUCCESS" : "FAILED",
     raw_reference: rawReference,
     error_reference: errorReference,
+    ...(result || !errorDiagnostic ? {} : { error_diagnostic: errorDiagnostic }),
   };
 }
 
@@ -88,9 +95,15 @@ export async function runMultiSourceCollection(seedKeyword = "달러", {
   persist = true,
   searchAdsCollector = collectNaverRaw,
   webCollector = collectNaverWebRaw,
-  collectionId = createCollectionId(),
+  collectionId = null,
   snapshotVersion = 1,
+  researchContext = null,
 } = {}) {
+  await assertBackupPreflight();
+  collectionId ??= createCollectionId();
+  if (researchContext?.search_seed != null && researchContext.search_seed !== seedKeyword) {
+    throw new Error("RESEARCH_CONTEXT_SEARCH_SEED_MISMATCH");
+  }
   const startedAt = new Date().toISOString();
   const idGenerator = createCollectionIdGenerator(collectionId);
   const keywordRegistry = createCanonicalKeywordRegistry({ collectionId, idGenerator, firstSeenAt: startedAt });
@@ -128,9 +141,9 @@ export async function runMultiSourceCollection(seedKeyword = "달러", {
     sourceRuns[sourceRuns.length - 1] = finalizeSourceRun(searchRun, true, searchResult.rawReference.relativePath, null);
   } catch (error) {
     const safeError = error?.message || "NAVER Search Ads collection failed.";
-    const errorRecord = createError(idGenerator, collectionId, searchRunId, config.naver.sourceId, searchResult?.error?.type || "PROVIDER_REQUEST_FAILED", safeError, searchResult?.error?.status || null, "SEARCH_DEMAND");
+    const errorRecord = createError(idGenerator, collectionId, searchRunId, config.naver.sourceId, searchResult?.error?.type || "PROVIDER_REQUEST_FAILED", safeError, searchResult?.error?.status || null, "SEARCH_DEMAND", searchResult?.error?.raw_error);
     errors.push(errorRecord);
-    sourceRuns[sourceRuns.length - 1] = finalizeSourceRun(searchRun, false, searchResult?.rawReference?.relativePath || null, errorRecord.error_id);
+    sourceRuns[sourceRuns.length - 1] = finalizeSourceRun(searchRun, false, searchResult?.rawReference?.relativePath || null, errorRecord.error_id, errorRecord.raw_error);
   }
 
   const webRunId = idGenerator.nextSourceRunId();
@@ -156,7 +169,7 @@ export async function runMultiSourceCollection(seedKeyword = "달러", {
   } catch (error) {
     const errorRecord = createError(idGenerator, collectionId, webRunId, config.naverWeb.sourceId, webResult?.error?.type || "PROVIDER_REQUEST_FAILED", error?.message || "NAVER WEB collection failed.", webResult?.error?.status || null, "WEB_SEARCH");
     errors.push(errorRecord);
-    sourceRuns[sourceRuns.length - 1] = finalizeSourceRun(webRun, false, null, errorRecord.error_id);
+    sourceRuns[sourceRuns.length - 1] = finalizeSourceRun(webRun, false, null, errorRecord.error_id, errorRecord.raw_error);
   }
 
   const snapshot = {
@@ -164,6 +177,27 @@ export async function runMultiSourceCollection(seedKeyword = "달러", {
     snapshot_version: snapshotVersion,
     collection_id: collectionId,
     seed_keyword: seedKeyword,
+    ...(researchContext ? {
+      research_context: {
+        research_session_id: researchContext.research_session_id,
+        ...(researchContext.research_plan_id ? { research_plan_id: researchContext.research_plan_id } : {}),
+        ...(researchContext.initial_discovery_id ? { initial_discovery_id: researchContext.initial_discovery_id } : {}),
+        research_target_id: researchContext.research_target_id,
+        ...(researchContext.research_plan_item_id ? { research_plan_item_id: researchContext.research_plan_item_id } : {}),
+        ...(researchContext.research_plan_item_ids ? { research_plan_item_ids: [...researchContext.research_plan_item_ids] } : {}),
+        search_seed: researchContext.search_seed || seedKeyword,
+        ...(researchContext.normalized_search_seed ? { normalized_search_seed: researchContext.normalized_search_seed } : {}),
+        ...(researchContext.evidence_to_collect ? { evidence_to_collect: [...researchContext.evidence_to_collect] } : {}),
+        ...(researchContext.selection_reason ? { selection_reason: [...researchContext.selection_reason] } : {}),
+        ...(researchContext.context_references ? { context_references: researchContext.context_references.map((reference) => ({ ...reference })) } : {}),
+        ...(researchContext.related_planner_hypotheses ? { related_planner_hypotheses: researchContext.related_planner_hypotheses.map((reference) => ({ ...reference })) } : {}),
+        ...(researchContext.related_reviewer_direction ? { related_reviewer_direction: researchContext.related_reviewer_direction.map((reference) => ({ ...reference })) } : {}),
+        source_types: [...(researchContext.source_types || [])],
+        source_references: (researchContext.source_references || []).map((reference) => ({ ...reference })),
+        reviewer_stages: [...(researchContext.reviewer_stages || [])],
+        reason: researchContext.reason || "",
+      },
+    } : {}),
     started_at: startedAt,
     captured_at: new Date().toISOString(),
     keyword_count: null,

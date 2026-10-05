@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "../config/index.mjs";
-import { collectMultiSource, createReviewSelection, createGeoHandoff, getGeoHandoff, getReviewSelection, getSearchEvidencePack, getStatus } from "./application.mjs";
+import { collectMultiSource, collectResearchSession, runInitialDiscoveryForSession, createInitialDiscoveryEvaluationForSession, getInitialDiscoveryEvaluationForSession, createFollowUpResearchProjectionForSession, getFollowUpResearchProjectionForSession, createSessionEvidenceIntegration, saveSessionResearchContext, getSessionResearchContext, createSessionSearchDemandCompression, createSessionInterpretedSearchDemandCompression, createFinalPlannerHandoffForSession, getFinalPlannerHandoffState, createReviewSelection, createGeoHandoff, getGeoHandoff, getReviewSelection, getSearchEvidencePack, getStatus } from "./application.mjs";
 
 const root = join(fileURLToPath(new URL("..", import.meta.url)), "ui");
 const researchRoot = join(fileURLToPath(new URL("..", import.meta.url)), "research");
@@ -101,7 +101,8 @@ const server = createServer(async (request, response) => {
       console.log("[collect] seed_parsed", { seedKeyword });
       if (!seedKeyword.trim()) throw new Error("SEED_KEYWORD_REQUIRED");
       console.log("[collect] orchestrator_start");
-      const result = await collectMultiSource(seedKeyword);
+      const researchContext = body.researchContext && typeof body.researchContext === "object" ? body.researchContext : null;
+      const result = await collectMultiSource(seedKeyword, { researchContext });
       console.log("[collect] orchestrator_complete", {
         collectionId: result.collectionId,
         status: result.snapshot?.status,
@@ -117,6 +118,154 @@ const server = createServer(async (request, response) => {
       response.writeHead(400, { "content-type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ status: "PREFLIGHT_FAILED", error: { error_type: "PREFLIGHT_FAILED", message: "Collection request was invalid." } }));
     }
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/research-session/collect") {
+    try {
+      const body = await readJsonBody(request, 256_000);
+      const result = await collectResearchSession(body.researchSession);
+      response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(result));
+    } catch (error) {
+      response.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: error?.message || "RESEARCH_SESSION_COLLECTION_FAILED" }));
+    }
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/research-session/initial-discovery/run") {
+    try {
+      const body = await readJsonBody(request, 1_000_000);
+      const result = await runInitialDiscoveryForSession({
+        collectionRequestProjection: body.collection_request_projection || body.collectionRequestProjection,
+      });
+      response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(result));
+    } catch (error) {
+      response.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: error?.message || "INITIAL_DISCOVERY_RUN_FAILED" }));
+    }
+    return;
+  }
+
+  if (request.method === "GET" && requestUrl.pathname === "/research-session/initial-discovery/evaluation") {
+    const researchSessionId = requestUrl.searchParams.get("researchSessionId") || "";
+    if (!/^research_session_[A-Za-z0-9_-]+$/.test(researchSessionId)) { response.writeHead(400, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: "INVALID_RESEARCH_SESSION_REFERENCE" })); return; }
+    try {
+      const evaluation = await getInitialDiscoveryEvaluationForSession(researchSessionId);
+      if (!evaluation) { response.writeHead(404, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: "INITIAL_DISCOVERY_EVALUATION_NOT_FOUND" })); return; }
+      response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(evaluation));
+    } catch (error) { response.writeHead(500, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: error?.message || "INITIAL_DISCOVERY_EVALUATION_READ_FAILED" })); }
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/research-session/initial-discovery/evaluation") {
+    try {
+      const body = await readJsonBody(request, 1_000_000);
+      const result = await createInitialDiscoveryEvaluationForSession({ researchSessionId: body.research_session_id || body.researchSessionId, researchPlan: body.research_plan || body.researchPlan || null, initialDiscoveryRun: body.initial_discovery_run || body.initialDiscoveryRun || null });
+      response.writeHead(201, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(result));
+    } catch (error) { response.writeHead(400, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: error?.message || "INITIAL_DISCOVERY_EVALUATION_FAILED" })); }
+    return;
+  }
+
+  if (request.method === "GET" && requestUrl.pathname === "/research-session/follow-up/projection") {
+    const researchSessionId = requestUrl.searchParams.get("researchSessionId") || "";
+    if (!/^research_session_[A-Za-z0-9_-]+$/.test(researchSessionId)) { response.writeHead(400, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: "INVALID_RESEARCH_SESSION_REFERENCE" })); return; }
+    try {
+      const projection = await getFollowUpResearchProjectionForSession(researchSessionId);
+      if (!projection) { response.writeHead(404, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: "FOLLOW_UP_PROJECTION_NOT_FOUND" })); return; }
+      response.writeHead(200, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify(projection));
+    } catch (error) { response.writeHead(500, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: error?.message || "FOLLOW_UP_PROJECTION_READ_FAILED" })); }
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/research-session/follow-up/projection") {
+    try {
+      const body = await readJsonBody(request, 1_000_000);
+      const result = await createFollowUpResearchProjectionForSession({ researchSessionId: body.research_session_id || body.researchSessionId, researchPlan: body.research_plan || body.researchPlan || null, evaluation: body.evaluation || null });
+      response.writeHead(201, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify(result));
+    } catch (error) { response.writeHead(400, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: error?.message || "FOLLOW_UP_PROJECTION_FAILED" })); }
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/research-session/integration") {
+    try {
+      const body = await readJsonBody(request, 256_000);
+      const integration = await createSessionEvidenceIntegration({ researchSessionId: body.research_session_id, targetResults: body.target_results, researchContext: body.research_context || null });
+      response.writeHead(201, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(integration));
+    } catch (error) {
+      response.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: error?.message || "RESEARCH_SESSION_INTEGRATION_FAILED" }));
+    }
+    return;
+  }
+
+  if (request.method === "GET" && requestUrl.pathname === "/research-session/context") {
+    const researchSessionId = requestUrl.searchParams.get("researchSessionId") || "";
+    if (!/^research_session_[A-Za-z0-9_-]+$/.test(researchSessionId)) { response.writeHead(400, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: "INVALID_RESEARCH_SESSION_REFERENCE" })); return; }
+    try {
+      const artifact = await getSessionResearchContext(researchSessionId);
+      if (!artifact) { response.writeHead(404, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: "RESEARCH_SESSION_CONTEXT_NOT_FOUND" })); return; }
+      response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(artifact));
+    } catch (error) { response.writeHead(500, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: error?.message || "RESEARCH_SESSION_CONTEXT_READ_FAILED" })); }
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/research-session/context") {
+    try {
+      const body = await readJsonBody(request, 256_000);
+      const result = await saveSessionResearchContext({ researchSessionId: body.research_session_id, context: body.context });
+      response.writeHead(201, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(result));
+    } catch (error) {
+      response.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: error?.message || "RESEARCH_SESSION_CONTEXT_SAVE_FAILED" }));
+    }
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/research-session/compression") {
+    try {
+      const body = await readJsonBody(request, 512_000);
+      const result = await createSessionSearchDemandCompression(body.integration);
+      response.writeHead(201, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(result));
+    } catch (error) {
+      response.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: error?.message || "SEARCH_DEMAND_COMPRESSION_FAILED" }));
+    }
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/research-session/compression/interpret") {
+    try {
+      const body = await readJsonBody(request, 768_000);
+      const result = await createSessionInterpretedSearchDemandCompression({ compression: body.compression, integration: body.integration || null, researchContext: body.research_context || null });
+      response.writeHead(201, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(result));
+    } catch (error) {
+      response.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: error?.message || "SEARCH_DEMAND_INTERPRETATION_FAILED" }));
+    }
+    return;
+  }
+
+  if (request.method === "GET" && requestUrl.pathname === "/final-planner-handoff") {
+    const researchSessionId = requestUrl.searchParams.get("researchSessionId") || "";
+    if (!/^research_session_[A-Za-z0-9_-]+$/.test(researchSessionId)) { response.writeHead(400, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: "INVALID_RESEARCH_SESSION_REFERENCE" })); return; }
+    try { const result = await getFinalPlannerHandoffState(researchSessionId); response.writeHead(200, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify(result)); }
+    catch (error) { response.writeHead(500, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: error?.message || "FINAL_PLANNER_HANDOFF_READ_FAILED" })); }
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/final-planner-handoff") {
+    try { const body = await readJsonBody(request, 32_000); if (!/^research_session_[A-Za-z0-9_-]+$/.test(body.researchSessionId || "")) throw new Error("INVALID_RESEARCH_SESSION_REFERENCE"); const result = await createFinalPlannerHandoffForSession(body.researchSessionId); response.writeHead(201, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify(result)); }
+    catch (error) { response.writeHead(error?.code === "FINAL_PLANNER_HANDOFF_INPUT_NOT_READY" ? 409 : 400, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: error?.message || "FINAL_PLANNER_HANDOFF_CREATE_FAILED" })); }
     return;
   }
 

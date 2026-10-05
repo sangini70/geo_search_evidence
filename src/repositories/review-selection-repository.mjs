@@ -1,8 +1,9 @@
 import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dataDirectory } from "./storage-paths.mjs";
+import { backupRuntimeArtifact } from "./backup-repository.mjs";
 
-const reviewRoot = fileURLToPath(new URL("../../data/reviews/", import.meta.url));
+const reviewRoot = dataDirectory("reviews");
 
 function fileName(version) { return `review-v${version}.json`; }
 
@@ -35,5 +36,7 @@ export async function saveReviewSelection(review, { reviewVersion = null } = {})
   catch (error) { if (error.code === "REVIEW_ALREADY_EXISTS") throw error; if (error.code !== "ENOENT") throw error; }
   const saved = { ...review, review_version: version, updated_at: new Date().toISOString() };
   await writeFile(path, `${JSON.stringify(saved, null, 2)}\n`, "utf8");
-  return { review: saved, relativePath: `data/reviews/${review.collection_id}/${fileName(version)}`, fileName: fileName(version) };
+  const relativePath = `data/reviews/${review.collection_id}/${fileName(version)}`;
+  const backup = await backupRuntimeArtifact(path, relativePath);
+  return { review: saved, relativePath, fileName: fileName(version), backup };
 }

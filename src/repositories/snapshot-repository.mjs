@@ -1,8 +1,9 @@
-import { access, mkdir, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dataDirectory } from "./storage-paths.mjs";
+import { backupRuntimeArtifact } from "./backup-repository.mjs";
 
-const snapshotDirectory = fileURLToPath(new URL("../../data/snapshots/", import.meta.url));
+const snapshotDirectory = dataDirectory("snapshots");
 
 export async function saveCollectionSnapshot(collectionId, snapshot, { snapshotVersion = null } = {}) {
   const targetDirectory = snapshotVersion == null ? snapshotDirectory : join(snapshotDirectory, collectionId);
@@ -20,5 +21,11 @@ export async function saveCollectionSnapshot(collectionId, snapshot, { snapshotV
     if (error.code !== "ENOENT") throw error;
   }
   await writeFile(filePath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
-  return { fileName, relativePath };
+  const backup = await backupRuntimeArtifact(filePath, relativePath);
+  return { fileName, relativePath, backup };
+}
+
+export async function readCollectionSnapshot(collectionId, { snapshotVersion = 1 } = {}) {
+  const filePath = join(snapshotDirectory, collectionId, `v${snapshotVersion}.json`);
+  return JSON.parse(await readFile(filePath, "utf8"));
 }

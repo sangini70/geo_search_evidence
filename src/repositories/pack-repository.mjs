@@ -1,8 +1,9 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dataDirectory } from "./storage-paths.mjs";
+import { backupRuntimeArtifact } from "./backup-repository.mjs";
 
-const snapshotDirectory = fileURLToPath(new URL("../../data/snapshots/", import.meta.url));
+const snapshotDirectory = dataDirectory("snapshots");
 
 export async function saveSearchEvidencePack(collectionId, pack, { packVersion = 1 } = {}) {
   const directory = join(snapshotDirectory, collectionId);
@@ -19,7 +20,9 @@ export async function saveSearchEvidencePack(collectionId, pack, { packVersion =
     if (error.code !== "ENOENT") throw error;
   }
   await writeFile(filePath, `${JSON.stringify(pack, null, 2)}\n`, "utf8");
-  return { relativePath: `data/snapshots/${collectionId}/${fileName}`, fileName };
+  const relativePath = `data/snapshots/${collectionId}/${fileName}`;
+  const backup = await backupRuntimeArtifact(filePath, relativePath);
+  return { relativePath, fileName, backup };
 }
 
 export async function readSearchEvidencePack(collectionId, { packVersion = 1 } = {}) {

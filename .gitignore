@@ -7,6 +7,7 @@ data/snapshots/*
 data/exports/*
 data/reviews/*
 data/handoffs/*
+data/research-sessions/*
 output/*
 !data/raw/.gitkeep
 !data/snapshots/.gitkeep

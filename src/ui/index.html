@@ -31,13 +31,42 @@
       <div id="research-seeds-panel" class="research-seeds-panel" hidden>
         <div class="step-heading"><h3>STEP 4 — Research Seeds</h3><span id="research-seeds-status" class="input-status">생성 전</span></div>
         <p class="muted">Hub Context, Planner Hypothesis, Reviewer Research Direction을 기준으로 실제 Search Evidence 조사에 사용할 Research Seed 후보입니다.</p>
-        <div class="seed-actions"><button id="generate-research-seeds" type="button">Research Seed 생성</button><button id="confirm-all-research-seeds" type="button">전체 CONFIRMED</button><button id="reset-all-research-seeds" type="button">전체 PROPOSED로 초기화</button></div>
-        <p id="research-seeds-message" class="muted">Research Context 확인 후 생성할 수 있습니다.</p>
+        <div class="seed-actions"><button id="generate-research-seeds" type="button">Research Seed 생성</button><button id="confirm-all-research-seeds" type="button">Manual / Emergency Override: 전체 CONFIRMED</button><button id="reset-all-research-seeds" type="button">Manual / Emergency Override: 전체 PROPOSED</button></div>
+        <p class="muted">Seed Decision 선택은 기본 수집 절차가 아닌 Manual / Emergency Override입니다. 자동 Target은 입력 문서 근거를 기준으로 준비됩니다.</p>
+        <p id="research-seeds-message" class="muted">Research Context 확인 후 입력 문서에 근거한 Research Target을 자동 준비합니다.</p>
         <div class="seed-summary"><span>PROPOSED <strong id="seed-proposed-count">0</strong></span><span>CONFIRMED <strong id="seed-confirmed-count">0</strong></span><span>EXCLUDED <strong id="seed-excluded-count">0</strong></span></div>
         <div class="table-wrap"><table><thead><tr><th>Research Seed</th><th>Source</th><th>Reason</th><th>Status</th></tr></thead><tbody id="research-seeds-body"></tbody></table></div>
-        <p id="research-seeds-ready" class="research-ready" hidden>Research Seeds 준비 완료</p>
-      </div>
-    </section>
+        <p id="research-seeds-ready" class="research-ready" hidden>Research Seeds 준비 완료</p><p id="research-context-save-status" class="muted" role="status" aria-live="polite"></p>
+        <div id="initial-discovery-panel" class="initial-discovery-panel" hidden>
+          <div class="step-heading"><h4>Initial Discovery</h4><span id="initial-discovery-status" class="input-status">NOT_READY</span></div>
+          <p class="seed-summary">Selected: <strong id="initial-discovery-selected-count">0</strong> · Deferred: <strong id="initial-discovery-deferred-count">0</strong> · Collection Ready: <strong id="initial-discovery-request-count">0</strong></p>
+          <div class="table-wrap"><table class="collection-targets-table"><thead><tr><th>Search Seed</th><th>Evidence Request</th><th>Selection Reason</th><th>Stage</th><th>Status</th></tr></thead><tbody id="initial-discovery-requests-body"></tbody></table></div>
+          <div class="initial-discovery-run"><p class="muted">초기 조사는 사용자가 승인한 경우에만 실행됩니다. 실행 시 외부 Search API가 호출됩니다.</p><button id="run-initial-discovery" type="button" disabled>Run Initial Discovery / 초기 조사 실행</button><p id="initial-discovery-run-message" class="muted" role="status" aria-live="polite"></p><p id="initial-discovery-run-summary" class="muted"></p><div id="initial-discovery-run-result" hidden><div class="table-wrap"><table class="collection-targets-table"><thead><tr><th>Search Seed</th><th>Status</th><th>Collection ID</th><th>Search Ads</th><th>WEB</th></tr></thead><tbody id="initial-discovery-run-body"></tbody></table></div></div></div>
+          <div class="initial-discovery-evaluation"><h5>Initial Discovery Evaluation</h5><button id="evaluate-initial-discovery" type="button" disabled>Evaluate Initial Discovery</button><p id="initial-discovery-evaluation-message" class="muted" role="status" aria-live="polite"></p><p id="initial-discovery-evaluation-summary" class="muted"></p><div id="initial-discovery-evaluation-result" hidden><div class="table-wrap"><table class="collection-targets-table"><thead><tr><th>Search Seed</th><th>Plan Purpose</th><th>Collection</th><th>Evidence Coverage</th><th>Evaluation Status</th></tr></thead><tbody id="initial-discovery-evaluation-body"></tbody></table></div></div></div>
+          <div class="follow-up-research-projection"><h5>Follow-up Research Projection</h5><button id="project-follow-up-research" type="button" disabled>Project Follow-up Research</button><p id="follow-up-projection-message" class="muted" role="status" aria-live="polite"></p><p id="follow-up-projection-summary" class="muted"></p><div id="follow-up-projection-result" hidden><div class="table-wrap"><table class="collection-targets-table"><thead><tr><th>Search Seed</th><th>Initial Evaluation</th><th>Follow-up Status</th><th>Reason</th><th>Reviewer Stage</th></tr></thead><tbody id="follow-up-projection-body"></tbody></table></div></div></div>
+        </div>
+        <div id="collection-targets-panel" class="collection-targets-panel" hidden>
+          <div class="step-heading"><h4>Collection Targets</h4><span id="collection-targets-status" class="input-status">NOT_READY</span></div>
+          <p class="muted">Research Session: <strong id="research-session-id">NOT_CREATED</strong></p>
+          <p class="muted">입력 문서에 근거한 Research Seed를 자동 Target으로 준비합니다. EXCLUDED만 제외되며, 아직 Search API를 호출하지 않습니다.</p>
+          <p class="seed-summary">READY <strong id="collection-targets-count">0</strong></p>
+          <div class="table-wrap"><table class="collection-targets-table"><thead><tr><th>Select</th><th>Search Seed</th><th>Source</th><th>Stage</th><th>Reason</th><th>Provenance</th><th>Status</th></tr></thead><tbody id="collection-targets-body"></tbody></table></div>
+          <div class="collection-target-execution"><p id="collection-target-execution-message" class="muted">Target를 선택하면 실제 Collection 실행 버튼이 활성화됩니다.</p><button id="collection-target-execution" type="button" disabled>선택 Target 수집</button><p id="collection-target-execution-result" class="muted" role="status" aria-live="polite"></p></div>
+          <div class="multi-collection-execution"><p class="muted">CONFIRMED Research Target만 순서대로 수집합니다. Target 하나가 실패해도 다음 Target을 계속 처리합니다.</p><button id="multi-collection-execution" type="button" disabled>CONFIRMED Targets 수집</button><p id="multi-collection-summary" class="muted" role="status" aria-live="polite"></p><div id="multi-collection-result" hidden><div class="table-wrap"><table class="collection-targets-table"><thead><tr><th>Search Seed</th><th>Collection ID</th><th>Collection Status</th><th>Search Ads</th><th>WEB</th><th>Candidates</th><th>Evidence</th><th>Metrics</th></tr></thead><tbody id="multi-collection-body"></tbody></table></div><button id="session-integration-execution" type="button" disabled>Session Evidence 통합</button><p id="session-integration-status" class="muted" role="status" aria-live="polite"></p><p id="session-integration-summary" class="muted"></p><button id="session-compression-execution" type="button" disabled>Search Demand Compression 생성</button><p id="session-compression-status" class="muted" role="status" aria-live="polite"></p><p id="session-compression-summary" class="muted"></p><button id="session-interpretation-execution" type="button" disabled>Relationship 해석 / Demand Cluster 후보</button><p id="session-interpretation-status" class="muted" role="status" aria-live="polite"></p><p id="session-interpretation-summary" class="muted"></p></div></div>
+          <div id="collection-target-result-details" class="collection-target-result" hidden>
+            <h4>Research Target Collection Result</h4>
+            <dl>
+              <div><dt>Search Seed</dt><dd id="collection-result-search-seed">NOT_AVAILABLE</dd></div>
+              <div><dt>Search Ads Status</dt><dd id="collection-result-search-ads">NOT_AVAILABLE</dd></div>
+              <div><dt>WEB Status</dt><dd id="collection-result-web">NOT_AVAILABLE</dd></div>
+              <div><dt>Candidates</dt><dd id="collection-result-candidates">NOT_AVAILABLE</dd></div>
+              <div><dt>Evidence</dt><dd id="collection-result-evidence">NOT_AVAILABLE</dd></div>
+              <div><dt>Metrics</dt><dd id="collection-result-metrics">NOT_AVAILABLE</dd></div>
+            </dl>
+          </div>
+        </div>
+       </div>
+     </section>
     <section class="seed-card"><p class="eyebrow">LEGACY / MANUAL COLLECTION</p><label for="seed">Hub Seed Keyword</label><input id="seed" value="달러" /><button id="collect" type="button">Search Evidence 수집</button></section>
     <section class="review-card"><div class="review-heading"><div><p class="eyebrow">SEARCH EVIDENCE PACK</p><h2>Result / Review</h2></div><div class="pack-loader"><label for="pack-id">Collection ID<input id="pack-id" placeholder="col_..." /></label><button id="load-pack" type="button">Pack 조회</button></div></div>
       <p id="review-message" class="muted">검토할 Pack의 Collection ID를 입력하세요.</p>
@@ -47,6 +76,14 @@
         <div class="controls"><label>Keyword Search<input id="keyword-search" placeholder="raw / normalized keyword" /></label><label>Role<select id="role-filter"><option>ALL</option></select></label><label>Total Status<select id="total-filter"><option>ALL</option></select></label><label>Provider Competition<select id="competition-filter"><option>ALL</option></select></label><label>WEB<select id="web-filter"><option>ALL</option></select></label><label>Sort<select id="sort-field"><option value="keyword">Keyword</option><option value="pcValue">PC Search Volume</option><option value="mobileValue">Mobile Search Volume</option><option value="totalValue">Total Search Volume</option><option value="competition">Provider Competition</option></select></label><label>Direction<select id="sort-direction"><option value="asc">ASC</option><option value="desc">DESC</option></select></label></div>
         <p class="muted">표시 행: <strong id="result-count">0 / 0</strong> · 정렬은 검토 편의용이며 Ranking이나 추천이 아닙니다.</p><div class="table-wrap"><table><thead><tr><th>Keyword</th><th>Role</th><th>PC</th><th>Mobile</th><th>Total</th><th>Total Status</th><th>Provider Competition</th><th>WEB</th><th>Trend</th><th>Source / Provider</th><th>Decision</th><th>Reviewer Note</th><th>Details</th></tr></thead><tbody id="review-body"></tbody></table></div>
       </div>
+    </section>
+    <section id="final-planner-handoff-panel" class="research-seeds-panel" hidden>
+      <div class="step-heading"><h3>STEP 5 — Final Planner Handoff</h3><span id="final-planner-handoff-status" class="input-status">NOT_READY</span></div>
+      <p class="muted">현재 Research Session의 Context, Integration, Compression을 Planner용 Handoff Projection으로 확인합니다.</p>
+      <dl class="handoff-meta"><div><dt>Research Session</dt><dd id="final-handoff-session">NOT_AVAILABLE</dd></div><div><dt>Context</dt><dd id="final-handoff-context">NOT_AVAILABLE</dd></div><div><dt>Integration</dt><dd id="final-handoff-integration">NOT_AVAILABLE</dd></div><div><dt>Compression</dt><dd id="final-handoff-compression">NOT_AVAILABLE</dd></div><div><dt>Final Handoff</dt><dd id="final-handoff-version">NOT_AVAILABLE</dd></div></dl>
+      <div class="summary-grid handoff-summary-grid"><div><span>Keywords</span><strong id="final-handoff-keywords">NOT_AVAILABLE</strong></div><div><span>Evidence</span><strong id="final-handoff-evidence">NOT_AVAILABLE</strong></div><div><span>Metrics</span><strong id="final-handoff-metrics">NOT_AVAILABLE</strong></div><div><span>Demand Clusters</span><strong id="final-handoff-clusters">NOT_AVAILABLE</strong></div><div><span>Representative Entrances</span><strong id="final-handoff-entrances">NOT_AVAILABLE</strong></div><div><span>Grounded Questions</span><strong id="final-handoff-questions">NOT_AVAILABLE</strong></div><div><span>REVIEW_REQUIRED Clusters</span><strong id="final-handoff-review-required">NOT_AVAILABLE</strong></div></div>
+      <p id="final-handoff-coverage" class="muted">Coverage: NOT_AVAILABLE</p><p class="muted">REVIEW_REQUIRED는 Planner의 최종 판단 대기 상태이며 오류가 아닙니다. Overall PARTIAL은 일부 Evidence Coverage가 미수집 또는 부분 상태임을 의미합니다.</p>
+      <div class="seed-actions"><button id="create-final-planner-handoff" type="button" disabled>Final Planner Handoff 생성</button><button id="load-final-planner-handoff" type="button" disabled>최신 Handoff 조회</button></div><p id="final-handoff-message" class="muted" role="status" aria-live="polite"></p>
     </section>
   </main><script type="module" src="/app.mjs?v=phase3-review"></script></body>
 </html>

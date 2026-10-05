@@ -4,7 +4,9 @@ import { saveRawSnapshot } from "../repositories/raw-repository.mjs";
 
 function errorRecord(error, collectionId, sourceRunId = null) {
   const messages = { PREFLIGHT_FAILED: "NAVER API credentials or seed keyword are not configured.", AUTH_FAILED: "NAVER API authentication failed.", PROVIDER_REQUEST_FAILED: "NAVER API request failed.", PROVIDER_RESPONSE_INVALID: "NAVER API response shape was invalid." };
-  return { error_id: `err_${collectionId}_${sourceRunId || "legacy"}`, collection_id: collectionId, source_run_id: sourceRunId, collector_id: "NAVER_SEARCH_DEMAND_COLLECTOR", source_id: config.naver.sourceId, error_type: error.type, message: messages[error.type] || "NAVER Source failed.", occurred_at: new Date().toISOString(), retryable: Boolean(error.retryable), raw_error: error.status == null ? null : { response_status: error.status } };
+  const rawError = { response_status: error.status ?? null };
+  if (error.diagnostics && typeof error.diagnostics === "object") Object.assign(rawError, error.diagnostics);
+  return { error_id: `err_${collectionId}_${sourceRunId || "legacy"}`, collection_id: collectionId, source_run_id: sourceRunId, collector_id: "NAVER_SEARCH_DEMAND_COLLECTOR", source_id: config.naver.sourceId, error_type: error.type, message: messages[error.type] || "NAVER Source failed.", occurred_at: new Date().toISOString(), retryable: Boolean(error.diagnostics?.retryable ?? error.retryable), raw_error: Object.keys(rawError).length ? rawError : null };
 }
 
 export async function collectNaverRaw(seedKeyword, { collectionId, sourceRunId } = {}) {

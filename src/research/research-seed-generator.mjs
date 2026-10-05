@@ -14,8 +14,13 @@ const VERIFICATION_REQUIRED_MARKER = { sourceType: "REVIEWER_RESEARCH_DIRECTION"
 const REVIEW_STRUCTURED_MARKERS = [
   { sourceType: "REVIEWER_RESEARCH_DIRECTION", label: "PRIORITY_REVIEW_GROUP", pattern: /^\d+\s*차\s+우선\s+확인군(?:\s*후보)?$/u },
   { sourceType: "REVIEWER_RESEARCH_DIRECTION", label: "EXPLICIT_REVIEW_TARGET", pattern: /^(?:실제\s+)?(?:검색|조회)\s*(?:데이터\s*)?(?:조사\s*)?(?:대상|확인군)(?:\s*\/\s*(?:확인군|대상))?(?:\s*후보)?$/u },
+  { sourceType: "REVIEWER_RESEARCH_DIRECTION", label: "REVIEW_QUERY_STAGE_1", acceptUnbulleted: true, codeBlockOnly: true, keepUntilCodeBlock: true, pattern: /^1차\s+핵심\s+조회(?:\s*(?:[-–—:]\s*).*)?$/u },
+  { sourceType: "REVIEWER_RESEARCH_DIRECTION", label: "REVIEW_QUERY_STAGE_2", acceptUnbulleted: true, codeBlockOnly: true, keepUntilCodeBlock: true, pattern: /^2차\s+추가\s+조회(?:\s*(?:[-–—:]\s*).*)?$/u },
+  { sourceType: "REVIEWER_RESEARCH_DIRECTION", label: "REVIEW_QUERY_STAGE_3", acceptUnbulleted: true, codeBlockOnly: true, keepUntilCodeBlock: true, pattern: /^3차\s+선택\s+조회(?:\s*(?:[-–—:]\s*).*)?$/u },
 ];
 const RUNTIME_MARKERS = [
+  { sourceType: "PLANNER_HYPOTHESIS", label: "MAIN_KEYWORD", acceptUnbulleted: false, pattern: /^(?:[-*]\s*)?main\s+keyword\s*[:：]\s*(.*)$/i },
+  { sourceType: "PLANNER_HYPOTHESIS", label: "SECONDARY_KEYWORDS", acceptUnbulleted: false, pattern: /^(?:[-*]\s*)?secondary\s+keywords?\s*[:：]\s*(.*)$/i },
   { sourceType: "PLANNER_HYPOTHESIS", label: "MAIN_KEYWORD", acceptUnbulleted: false, pattern: /^(?:[-*]\s*)?\*\*(?:main\s+keyword):\*\*\s*(.*)$/i },
   { sourceType: "PLANNER_HYPOTHESIS", label: "SECONDARY_KEYWORDS", acceptUnbulleted: false, pattern: /^(?:[-*]\s*)?\*\*(?:secondary\s+keywords?):\*\*\s*(.*)$/i },
   { sourceType: "REVIEWER_RESEARCH_DIRECTION", label: "DEMAND_ANCHOR_GROUP", acceptUnbulleted: true, pattern: /^\d+\s*차\s+demand\s+anchor\s+조회$/iu },
@@ -32,11 +37,22 @@ function cleanCandidate(value) {
   return normalizeSeedText(String(value).replace(/^[-*•·][ \t]*/u, "").replace(/^\d+[.)][ \t]*/u, ""));
 }
 
+function isStatusOrDecisionText(value) {
+  const text = cleanCandidate(value);
+  return /^(?:확정\s*[:：]\s*보류|보류|not\s+confirmed|not\s+provided|required|verification\s+required|search\s+demand|planner\s+handoff|mode\s+[ab]|현재\s+판단)(?:\s*[:：].*)?$/iu.test(text);
+}
+
 function isCandidateLine(value) {
   const text = cleanCandidate(value);
   if (!text || text.length > 160) return false;
+  if (isStatusOrDecisionText(text)) return false;
   if (/^(?:node|section|step|reason|이유|설명|reviewer|planner|hub)\b\s*[:：]?$/iu.test(text)) return false;
   return !/^[ \t]/u.test(text) && !/[.!?。！？;；]/u.test(text);
+}
+
+function reviewerStagesFromMarker(marker) {
+  const match = /^REVIEW_QUERY_STAGE_([123])$/u.exec(String(marker ?? ""));
+  return match ? [Number(match[1])] : [];
 }
 
 function splitInlineCandidates(value) {
@@ -57,11 +73,12 @@ function addCandidate(candidates, candidate, sourceType, inputField, lineNumber,
   if (existing) {
     if (!existing.source_types.includes(sourceType)) existing.source_types.push(sourceType);
     existing.source_references.push(reference);
+    existing.reviewer_stages = [...new Set([...existing.reviewer_stages, ...reviewerStagesFromMarker(marker)])].sort((a, b) => a - b);
     if (reason && !existing.reasons.includes(reason)) existing.reasons.push(reason);
     existing.reason = existing.reasons.join("; ");
     return;
   }
-  candidates.set(normalized, { seed_text: normalized, normalized_seed_text: normalized, source_types: [sourceType], source_references: [reference], reasons: reason ? [reason] : [], reason: reason || "", status: "PROPOSED" });
+  candidates.set(normalized, { seed_text: normalized, normalized_seed_text: normalized, source_types: [sourceType], source_references: [reference], reviewer_stages: reviewerStagesFromMarker(marker), reasons: reason ? [reason] : [], reason: reason || "", status: "PROPOSED" });
 }
 
 function extractFromField(value, inputField, candidates) {
@@ -90,10 +107,10 @@ function extractFromField(value, inputField, candidates) {
     if (!line) {
       const nextNonEmptyLine = lines.slice(index + 1).find((candidateLine) => candidateLine.trim());
       const blankBeforeActiveCodeBlock = active?.acceptUnbulleted && /^```/u.test(nextNonEmptyLine?.trim() || "");
-      if (!blankBeforeActiveCodeBlock) active = null;
+      if (!blankBeforeActiveCodeBlock && !active?.keepUntilCodeBlock) active = null;
       continue;
     }
-    if (!active || !isCandidateLine(cleanCandidate(line))) continue;
+    if (!active || (active.codeBlockOnly && !inCodeBlock) || !isCandidateLine(cleanCandidate(line))) continue;
     const candidate = cleanCandidate(line);
     const isListItem = /^[-*•·][ \t]*/u.test(line) || /^\d+[.)][ \t]*/u.test(line);
     const isExplicitSectionLine = active.label === "PLANNER_HYPOTHESIS" || active.label === "REVIEWER_RESEARCH_DIRECTION";

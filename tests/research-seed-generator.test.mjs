@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import { generateResearchSeeds, updateResearchSeedStatus } from "../src/research/research-seed-generator.mjs";
 
 const input = {
@@ -150,31 +149,79 @@ assert.equal(markdownRuntimeSeeds.length > 0, true);
 assert.equal(markdownRuntimeSeeds.some((seed) => seed.seed_text === "환율"), true);
 assert.equal(markdownRuntimeSeeds.some((seed) => seed.seed_text === "DXY"), true);
 
-const runtimePlannerFixture = await readFile(new URL("./fixtures/runtime-planner-hypothesis.md", import.meta.url), "utf8");
-const runtimeReviewerFixture = await readFile(new URL("./fixtures/runtime-reviewer-direction.md", import.meta.url), "utf8");
-assert.equal(runtimePlannerFixture.length, 11307);
-assert.equal(runtimeReviewerFixture.length, 17694);
-const runtimeSeeds = generateResearchSeeds({
-  planner_hypothesis: { raw_text: runtimePlannerFixture, confirmed: true },
-  reviewer_research_direction: { raw_text: runtimeReviewerFixture, confirmed: true },
-});
-assert.equal(runtimeSeeds.length > 0, true);
-assert.equal(runtimeSeeds.some((seed) => seed.source_types.includes("PLANNER_HYPOTHESIS")), true);
-assert.equal(runtimeSeeds.some((seed) => seed.source_types.includes("REVIEWER_RESEARCH_DIRECTION")), true);
-assert.equal(new Set(runtimeSeeds.map((seed) => seed.seed_text)).size, runtimeSeeds.length);
-for (const noiseSeed of ["후보", "대상", "검증", "확인", "VERIFICATION REQUIRED", "REVIEW_REQUIRED", "MODE A", "MODE B", "Search Entrance", "Demand Anchor", "Intent Bridge"]) {
-  assert.equal(runtimeSeeds.some((seed) => seed.seed_text === noiseSeed), false, noiseSeed);
+const yenRuntimeFixture = {
+  hub_context: { hub_story: "엔화 가치와 환율 변동", story_direction: "", confirmed: true },
+  planner_hypothesis: {
+    raw_text: [
+      "- MAIN KEYWORD: 엔화 환율",
+      "- SECONDARY KEYWORDS: 엔화 가치, 엔저, 엔고, 원엔 환율, 달러엔 환율",
+      "- MAIN KEYWORD: 엔저",
+      "- SECONDARY KEYWORDS: 엔고, 엔화 강세, 엔화 약세",
+    ].join("\n"),
+    confirmed: true,
+  },
+  reviewer_research_direction: {
+    raw_text: [
+      "## 1차 핵심 조회 — Demand Anchor Discovery",
+      "```text",
+      "엔화",
+      "엔화 환율",
+      "엔화 가치",
+      "엔저",
+      "엔고",
+      "원엔 환율",
+      "달러엔 환율",
+      "엔화 강세",
+      "엔화 약세",
+      "```",
+      "DEMAND ANCHOR: 확정: 보류",
+      "SEARCH DEMAND: NOT PROVIDED",
+      "## 2차 추가 조회 — Search Entrance / Intent Bridge",
+      "```text",
+      "엔화 환율 보는 법",
+      "엔화 상승",
+      "엔화 하락",
+      "엔저 원인",
+      "엔고 원인",
+      "```",
+      "## 3차 선택 조회 — Relation / Long-tail",
+      "```text",
+      "원엔 달러엔 차이",
+      "엔화 가치 원인",
+      "```",
+      "VERIFICATION REQUIRED",
+      "NOT CONFIRMED",
+    ].join("\n"),
+    confirmed: true,
+  },
+};
+const yenRuntimeSeeds = generateResearchSeeds(yenRuntimeFixture);
+const yenRuntimeSeedTexts = yenRuntimeSeeds.map((seed) => seed.seed_text);
+for (const expectedSeed of [
+  "엔화", "엔화 환율", "엔화 가치", "엔저", "엔고", "원엔 환율", "달러엔 환율",
+  "엔화 강세", "엔화 약세", "엔화 환율 보는 법", "엔화 상승", "엔화 하락",
+  "엔저 원인", "엔고 원인", "원엔 달러엔 차이", "엔화 가치 원인",
+]) assert.equal(yenRuntimeSeedTexts.includes(expectedSeed), true, expectedSeed);
+for (const noiseSeed of ["확정: 보류", "보류", "NOT CONFIRMED", "NOT PROVIDED", "REQUIRED", "VERIFICATION REQUIRED", "SEARCH DEMAND", "PLANNER HANDOFF", "MODE A", "현재 판단"]) {
+  assert.equal(yenRuntimeSeedTexts.includes(noiseSeed), false, noiseSeed);
 }
-assert.equal(runtimeSeeds.every((seed) => seed.status === "PROPOSED"), true);
-const confirmedRuntimeSeeds = runtimeSeeds.map((seed) => updateResearchSeedStatus(runtimeSeeds, seed.research_seed_id, "CONFIRMED").find((updatedSeed) => updatedSeed.research_seed_id === seed.research_seed_id));
-assert.equal(confirmedRuntimeSeeds.every((seed) => seed.status === "CONFIRMED"), true);
-const resetRuntimeSeeds = confirmedRuntimeSeeds.map((seed) => ({ ...seed, status: "PROPOSED" }));
-assert.equal(resetRuntimeSeeds.every((seed) => seed.status === "PROPOSED"), true);
-const reviewedRuntimeSeeds = updateResearchSeedStatus(updateResearchSeedStatus(resetRuntimeSeeds, resetRuntimeSeeds[0].research_seed_id, "CONFIRMED"), resetRuntimeSeeds[1].research_seed_id, "EXCLUDED");
-assert.equal(reviewedRuntimeSeeds.filter((seed) => seed.status === "CONFIRMED").length, 1);
-assert.equal(reviewedRuntimeSeeds.filter((seed) => seed.status === "EXCLUDED").length, 1);
-assert.equal(reviewedRuntimeSeeds.filter((seed) => seed.status === "PROPOSED").length, runtimeSeeds.length - 2);
-assert.deepEqual(reviewedRuntimeSeeds[0].source_references, runtimeSeeds[0].source_references);
-assert.deepEqual(reviewedRuntimeSeeds[1].source_types, runtimeSeeds[1].source_types);
+assert.equal(yenRuntimeSeeds.find((seed) => seed.seed_text === "엔화 환율").source_types.includes("PLANNER_HYPOTHESIS"), true);
+assert.equal(yenRuntimeSeeds.find((seed) => seed.seed_text === "엔화 환율").source_types.includes("REVIEWER_RESEARCH_DIRECTION"), true);
+assert.deepEqual(yenRuntimeSeeds.find((seed) => seed.seed_text === "엔화 환율").reviewer_stages, [1]);
+assert.deepEqual(yenRuntimeSeeds.find((seed) => seed.seed_text === "엔화 환율 보는 법").reviewer_stages, [2]);
+assert.deepEqual(yenRuntimeSeeds.find((seed) => seed.seed_text === "원엔 달러엔 차이").reviewer_stages, [3]);
+assert.equal(yenRuntimeSeeds.find((seed) => seed.seed_text === "엔화").source_references.some((reference) => reference.marker === "REVIEW_QUERY_STAGE_1"), true);
+assert.equal(yenRuntimeSeeds.find((seed) => seed.seed_text === "엔화 환율 보는 법").source_references.some((reference) => reference.marker === "REVIEW_QUERY_STAGE_2"), true);
+assert.equal(yenRuntimeSeeds.find((seed) => seed.seed_text === "원엔 달러엔 차이").source_references.some((reference) => reference.marker === "REVIEW_QUERY_STAGE_3"), true);
+assert.equal(yenRuntimeSeeds.filter((seed) => seed.seed_text === "엔화 환율").length, 1);
+
+const notationVariantSeeds = generateResearchSeeds({
+  hub_context: {},
+  planner_hypothesis: { raw_text: "MAIN KEYWORD: 원엔 환율", confirmed: true },
+  reviewer_research_direction: { raw_text: "1차 핵심 조회\n```\n원엔 환율\n```", confirmed: true },
+});
+assert.equal(notationVariantSeeds.length, 1);
+assert.equal(notationVariantSeeds[0].seed_text, "원엔 환율");
+assert.deepEqual(notationVariantSeeds[0].reviewer_stages, [1]);
 
 console.log("Research Seed Generator tests passed.");

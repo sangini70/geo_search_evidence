@@ -1,8 +1,9 @@
 import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dataDirectory } from "./storage-paths.mjs";
+import { backupRuntimeArtifact } from "./backup-repository.mjs";
 
-const handoffRoot = fileURLToPath(new URL("../../data/handoffs/", import.meta.url));
+const handoffRoot = dataDirectory("handoffs");
 
 function fileName(handoffVersion, reviewVersion) { return `handoff-v${handoffVersion}-r${reviewVersion}.json`; }
 
@@ -31,7 +32,9 @@ export async function saveGeoHandoff(handoff) {
   catch (error) { if (error.code === "HANDOFF_ALREADY_EXISTS") throw error; if (error.code !== "ENOENT") throw error; }
   const saved = { ...handoff, handoff_version: handoffVersion };
   await writeFile(path, `${JSON.stringify(saved, null, 2)}\n`, "utf8");
-  return { handoff: saved, relativePath: `data/handoffs/${handoff.collection_id}/${file}`, fileName: file };
+  const relativePath = `data/handoffs/${handoff.collection_id}/${file}`;
+  const backup = await backupRuntimeArtifact(path, relativePath);
+  return { handoff: saved, relativePath, fileName: file, backup };
 }
 
 export async function readGeoHandoff(collectionId, { handoffVersion = null } = {}) {
