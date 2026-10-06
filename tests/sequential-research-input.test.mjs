@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 const html = await readFile(new URL("../src/ui/index.html", import.meta.url), "utf8");
 const app = await readFile(new URL("../src/ui/app.mjs", import.meta.url), "utf8");
 
-for (const id of ["hub-seed", "hub-story", "story-direction", "planner-hypothesis", "reviewer-direction", "confirm-hub-context", "confirm-planner-hypothesis", "confirm-reviewer-direction", "research-ready", "research-context-save-status", "confirm-all-research-seeds", "reset-all-research-seeds", "collection-targets-panel", "collection-targets-status", "research-session-id", "collection-targets-count", "collection-targets-body", "collection-target-execution", "collection-target-result-details", "collection-result-search-seed", "collection-result-search-ads", "collection-result-web", "collection-result-candidates", "collection-result-evidence", "collection-result-metrics", "multi-collection-execution", "multi-collection-result", "multi-collection-summary", "multi-collection-body", "session-integration-execution", "session-integration-status", "session-integration-summary", "session-compression-execution", "session-compression-status", "session-compression-summary", "session-interpretation-execution", "session-interpretation-status", "session-interpretation-summary"]) {
+for (const id of ["hub-seed", "hub-story", "story-direction", "planner-hypothesis", "reviewer-direction", "confirm-hub-context", "confirm-planner-hypothesis", "confirm-reviewer-direction", "research-ready", "research-context-save-status", "confirm-all-research-seeds", "reset-all-research-seeds", "collection-targets-panel", "collection-targets-status", "research-session-id", "collection-targets-count", "collection-targets-body", "collection-target-execution", "collection-target-result-details", "collection-result-search-seed", "collection-result-search-ads", "collection-result-web", "collection-result-candidates", "collection-result-evidence", "collection-result-metrics", "multi-collection-execution", "multi-collection-result", "multi-collection-summary", "multi-collection-body", "session-integration-execution", "session-integration-status", "session-integration-summary", "session-compression-execution", "session-compression-status", "session-compression-summary", "session-interpretation-execution", "session-interpretation-status", "session-interpretation-summary", "planner-decision-brief-panel", "planner-decision-brief-status", "planner-decision-brief-filename", "download-planner-decision-brief"]) {
   assert.match(html, new RegExp(`id=\\"${id}\\"`));
 }
 assert.match(app, /const researchInput =/);
@@ -44,6 +44,12 @@ assert.match(app, /fetch\("\/research-session\/collect"/);
 assert.match(app, /fetch\("\/research-session\/integration"/);
 assert.match(app, /fetch\("\/research-session\/context"/);
 assert.match(app, /fetch\(`\/research-session\/context\?researchSessionId=/);
+for (const id of ["recent-completed-research-panel", "recent-completed-research-status", "recent-completed-research-title", "recent-completed-research-session", "recent-completed-research-file", "open-recent-completed-research", "download-recent-completed-brief"]) assert.match(html, new RegExp(`id=\\"${id}\\"`));
+assert.match(app, /fetch\("\/research-sessions\/recent-completed"/);
+assert.match(app, /research-session\/planner-decision-brief\/download\?researchSessionId=/);
+assert.match(app, /fetch\(`\/research-session\/planner-decision-brief\?researchSessionId=/);
+assert.match(app, /planner-decision-brief\/download\?researchSessionId=/);
+assert.match(app, /window\.location\.assign\(url\)/);
 assert.match(app, /async function loadInitialResearchContext/);
 const hydrationBody = app.match(/async function loadInitialResearchContext\(\) \{([\s\S]*?)\n\}/)?.[1] || "";
 assert.doesNotMatch(hydrationBody, /renderFinalPlannerHandoffState\(\)/);

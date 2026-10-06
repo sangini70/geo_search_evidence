@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "../config/index.mjs";
-import { collectMultiSource, collectResearchSession, runInitialDiscoveryForSession, createInitialDiscoveryEvaluationForSession, getInitialDiscoveryEvaluationForSession, createFollowUpResearchProjectionForSession, getFollowUpResearchProjectionForSession, createSessionEvidenceIntegration, saveSessionResearchContext, getSessionResearchContext, createSessionSearchDemandCompression, createSessionInterpretedSearchDemandCompression, createFinalPlannerHandoffForSession, getFinalPlannerHandoffState, createReviewSelection, createGeoHandoff, getGeoHandoff, getReviewSelection, getSearchEvidencePack, getStatus } from "./application.mjs";
+import { collectMultiSource, collectResearchSession, runInitialDiscoveryForSession, createInitialDiscoveryEvaluationForSession, getInitialDiscoveryEvaluationForSession, createFollowUpResearchProjectionForSession, getFollowUpResearchProjectionForSession, createSessionEvidenceIntegration, saveSessionResearchContext, getSessionResearchContext, createSessionSearchDemandCompression, createSessionInterpretedSearchDemandCompression, createFinalPlannerHandoffForSession, getFinalPlannerHandoffState, getLatestPlannerDecisionBriefFile, getLatestPlannerDecisionBriefMetadata, getLatestCompletedResearchSession, createReviewSelection, createGeoHandoff, getGeoHandoff, getReviewSelection, getSearchEvidencePack, getStatus } from "./application.mjs";
 
 const root = join(fileURLToPath(new URL("..", import.meta.url)), "ui");
 const researchRoot = join(fileURLToPath(new URL("..", import.meta.url)), "research");
@@ -266,6 +266,50 @@ const server = createServer(async (request, response) => {
   if (request.method === "POST" && requestUrl.pathname === "/final-planner-handoff") {
     try { const body = await readJsonBody(request, 32_000); if (!/^research_session_[A-Za-z0-9_-]+$/.test(body.researchSessionId || "")) throw new Error("INVALID_RESEARCH_SESSION_REFERENCE"); const result = await createFinalPlannerHandoffForSession(body.researchSessionId); response.writeHead(201, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify(result)); }
     catch (error) { response.writeHead(error?.code === "FINAL_PLANNER_HANDOFF_INPUT_NOT_READY" ? 409 : 400, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: error?.message || "FINAL_PLANNER_HANDOFF_CREATE_FAILED" })); }
+    return;
+  }
+
+  if (request.method === "GET" && requestUrl.pathname === "/research-session/planner-decision-brief/download") {
+    const researchSessionId = requestUrl.searchParams.get("researchSessionId") || "";
+    if (!/^research_session_[A-Za-z0-9_-]+$/.test(researchSessionId)) { response.writeHead(400, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: "INVALID_RESEARCH_SESSION_REFERENCE" })); return; }
+    try {
+      const brief = await getLatestPlannerDecisionBriefFile(researchSessionId);
+      if (!brief) { response.writeHead(404, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: "PLANNER_DECISION_BRIEF_NOT_FOUND" })); return; }
+      response.writeHead(200, { "content-type": "application/json", "content-disposition": `attachment; filename=\"${brief.fileName}\"`, "content-length": brief.bytes.byteLength });
+      response.end(brief.bytes);
+    } catch (error) {
+      const statusCode = error?.code === "ENOENT" ? 404 : 500;
+      response.writeHead(statusCode, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: statusCode === 404 ? "PLANNER_DECISION_BRIEF_NOT_FOUND" : "PLANNER_DECISION_BRIEF_READ_FAILED" }));
+    }
+    return;
+  }
+
+  if (request.method === "GET" && requestUrl.pathname === "/research-session/planner-decision-brief") {
+    const researchSessionId = requestUrl.searchParams.get("researchSessionId") || "";
+    if (!/^research_session_[A-Za-z0-9_-]+$/.test(researchSessionId)) { response.writeHead(400, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: "INVALID_RESEARCH_SESSION_REFERENCE" })); return; }
+    try {
+      const metadata = await getLatestPlannerDecisionBriefMetadata(researchSessionId);
+      if (!metadata) { response.writeHead(404, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: "PLANNER_DECISION_BRIEF_NOT_FOUND" })); return; }
+      response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(metadata));
+    } catch {
+      response.writeHead(500, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: "PLANNER_DECISION_BRIEF_READ_FAILED" }));
+    }
+    return;
+  }
+
+  if (request.method === "GET" && requestUrl.pathname === "/research-sessions/recent-completed") {
+    try {
+      const session = await getLatestCompletedResearchSession();
+      if (!session) { response.writeHead(404, { "content-type": "application/json; charset=utf-8" }); response.end(JSON.stringify({ error: "COMPLETED_RESEARCH_SESSION_NOT_FOUND" })); return; }
+      response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ...session, download_url: `/research-session/planner-decision-brief/download?researchSessionId=${encodeURIComponent(session.research_session_id)}` }));
+    } catch {
+      response.writeHead(500, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: "RECENT_RESEARCH_SESSION_READ_FAILED" }));
+    }
     return;
   }
 

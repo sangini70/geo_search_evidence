@@ -119,7 +119,21 @@ const finalHandoffCoverage = $("#final-handoff-coverage");
 const createFinalPlannerHandoffButton = $("#create-final-planner-handoff");
 const loadFinalPlannerHandoffButton = $("#load-final-planner-handoff");
 const finalHandoffMessage = $("#final-handoff-message");
+const plannerDecisionBriefPanel = $("#planner-decision-brief-panel");
+const plannerDecisionBriefStatus = $("#planner-decision-brief-status");
+const plannerDecisionBriefFilename = $("#planner-decision-brief-filename");
+const downloadPlannerDecisionBriefButton = $("#download-planner-decision-brief");
+const plannerDecisionBriefMessage = $("#planner-decision-brief-message");
+const recentCompletedResearchStatus = $("#recent-completed-research-status");
+const recentCompletedResearchMessage = $("#recent-completed-research-message");
+const recentCompletedResearchDetails = $("#recent-completed-research-details");
+const recentCompletedResearchTitle = $("#recent-completed-research-title");
+const recentCompletedResearchSession = $("#recent-completed-research-session");
+const recentCompletedResearchFile = $("#recent-completed-research-file");
+const openRecentCompletedResearchButton = $("#open-recent-completed-research");
+const downloadRecentCompletedBriefButton = $("#download-recent-completed-brief");
 let sessionCompressionData = null;
+let recentCompletedResearch = null;
 let currentRows = [];
 let decisions = new Map();
 let notes = new Map();
@@ -149,6 +163,25 @@ const initialResearchSessionId = new URLSearchParams(location.search).get("resea
 if (/^research_session_[A-Za-z0-9_-]+$/.test(initialResearchSessionId || "")) researchSession = { research_session_id: initialResearchSessionId };
 
 function hasText(value) { return Boolean(value.trim()); }
+function renderRecentCompletedResearch(session = null) {
+  recentCompletedResearch = session;
+  const ready = Boolean(session?.research_session_id && session?.file_name);
+  recentCompletedResearchStatus.textContent = ready ? "READY" : "NOT_READY";
+  recentCompletedResearchDetails.hidden = !ready;
+  recentCompletedResearchTitle.textContent = ready ? (session.hub_title || "NOT_AVAILABLE") : "NOT_AVAILABLE";
+  recentCompletedResearchSession.textContent = ready ? session.research_session_id : "NOT_AVAILABLE";
+  recentCompletedResearchFile.textContent = ready ? session.file_name : "NOT_AVAILABLE";
+  recentCompletedResearchMessage.textContent = ready ? "기존 완료 결과를 조회할 수 있습니다." : "아직 완료된 Research Session이 없습니다.";
+  openRecentCompletedResearchButton.disabled = !ready;
+  downloadRecentCompletedBriefButton.disabled = !ready;
+}
+async function loadRecentCompletedResearch() {
+  const response = await fetch("/research-sessions/recent-completed");
+  if (response.status === 404) { renderRecentCompletedResearch(); return; }
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "RECENT_RESEARCH_SESSION_READ_FAILED");
+  renderRecentCompletedResearch(result);
+}
 function invalidateResearchFrom(step) {
   if (step <= 1) {
     researchInput.hub_context.confirmed = false;
@@ -534,7 +567,27 @@ async function loadFinalPlannerHandoff() {
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || "FINAL_PLANNER_HANDOFF_READ_FAILED");
   renderFinalPlannerHandoffState(result);
+  await loadPlannerDecisionBriefState();
   finalHandoffMessage.textContent = result.handoff ? `최신 Final Planner Handoff v${result.handoff.handoff_version} 조회 완료` : "아직 생성된 Final Planner Handoff가 없습니다.";
+}
+function renderPlannerDecisionBriefState(metadata = null) {
+  const sessionId = researchSession?.research_session_id || null;
+  plannerDecisionBriefPanel.hidden = !sessionId;
+  const ready = Boolean(metadata?.file_name);
+  plannerDecisionBriefStatus.textContent = ready ? "READY" : "NOT_READY";
+  plannerDecisionBriefFilename.textContent = ready ? metadata.file_name : "아직 생성된 Planner Decision Brief가 없습니다.";
+  downloadPlannerDecisionBriefButton.disabled = !ready;
+  downloadPlannerDecisionBriefButton.dataset.downloadUrl = ready
+    ? `/research-session/planner-decision-brief/download?researchSessionId=${encodeURIComponent(sessionId)}`
+    : "";
+}
+async function loadPlannerDecisionBriefState() {
+  if (!researchSession?.research_session_id) return;
+  const response = await fetch(`/research-session/planner-decision-brief?researchSessionId=${encodeURIComponent(researchSession.research_session_id)}`);
+  if (response.status === 404) { renderPlannerDecisionBriefState(); return; }
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "PLANNER_DECISION_BRIEF_READ_FAILED");
+  renderPlannerDecisionBriefState(result);
 }
 async function loadInitialResearchContext() {
   if (!initialResearchSessionId) return false;
@@ -554,6 +607,7 @@ async function loadInitialResearchContext() {
   researchSession = { research_session_id: artifact.research_session_id, created_at: artifact.created_at };
   renderResearchInputState();
   renderCollectionTargets();
+  await loadPlannerDecisionBriefState();
   return true;
 }
 async function createFinalPlannerHandoffFromUi() {
@@ -565,6 +619,7 @@ async function createFinalPlannerHandoffFromUi() {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "FINAL_PLANNER_HANDOFF_CREATE_FAILED");
     renderFinalPlannerHandoffState(result);
+    await loadPlannerDecisionBriefState();
     finalHandoffMessage.textContent = `Final Planner Handoff v${result.handoff.handoff_version} 생성 완료`;
   } catch (error) { finalHandoffMessage.textContent = `생성 실패: ${error.message}`; }
   finally { createFinalPlannerHandoffButton.disabled = false; }
@@ -854,7 +909,22 @@ collectButton.addEventListener("click", async () => {
     else { status.textContent = "실패"; rawStatus.textContent = result.status === "WAITING_FOR_CREDENTIALS" ? "대기" : "실패"; $("#preflight").textContent = result.preflight?.status || result.status || "FAILED"; }
   } catch { status.textContent = "실패"; rawStatus.textContent = "실패"; } finally { collectButton.disabled = false; }
 });
+downloadPlannerDecisionBriefButton.addEventListener("click", () => {
+  const url = downloadPlannerDecisionBriefButton.dataset.downloadUrl;
+  if (!url) return;
+  plannerDecisionBriefMessage.textContent = "Planner Decision Brief 다운로드를 시작합니다.";
+  window.location.assign(url);
+});
+openRecentCompletedResearchButton.addEventListener("click", () => {
+  if (!recentCompletedResearch?.research_session_id) return;
+  window.location.assign(`/?researchSessionId=${encodeURIComponent(recentCompletedResearch.research_session_id)}`);
+});
+downloadRecentCompletedBriefButton.addEventListener("click", () => {
+  if (!recentCompletedResearch?.download_url) return;
+  window.location.assign(recentCompletedResearch.download_url);
+});
 await fetch("/status").then((response) => response.json()).then((data) => { status.textContent = data.status; $("#stage").textContent = data.stage; $("#preflight").textContent = data.sourcePreflight.status; $("#ratio").textContent = `${data.competitionRatio.formula} / ${data.competitionRatio.formulaVersion}`; }).catch(() => { status.textContent = "상태 확인 실패"; });
-if (initialResearchSessionId) loadInitialResearchContext().catch((error) => { finalHandoffMessage.textContent = `Context load failed: ${error.message}`; });
+loadRecentCompletedResearch().catch((error) => { recentCompletedResearchStatus.textContent = "NOT_READY"; recentCompletedResearchMessage.textContent = `완료 결과 조회 실패: ${error.message}`; });
+if (initialResearchSessionId) loadInitialResearchContext().catch((error) => { finalHandoffMessage.textContent = `Context load failed: ${error.message}`; renderPlannerDecisionBriefState(); });
 const initialCollectionId = new URLSearchParams(location.search).get("collectionId");
 if (initialCollectionId) { packId.value = initialCollectionId; loadPack(initialCollectionId).catch((error) => { review.hidden = false; reviewMessage.textContent = error.message; }); }

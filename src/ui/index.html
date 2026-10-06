@@ -4,6 +4,7 @@
   <body><main class="shell">
     <header><p class="eyebrow">GEO SEARCH EVIDENCE COLLECTOR</p><h1>RAW Evidence Collection</h1><p class="intro">Collection 실행과 SEARCH EVIDENCE PACK 검토를 분리합니다.</p></header>
     <section class="status-card" aria-live="polite"><span id="status" class="status">확인 중</span><dl><div><dt>Stage</dt><dd id="stage">-</dd></div><div><dt>Source Preflight</dt><dd id="preflight">-</dd></div><div><dt>RAW Evidence</dt><dd id="raw-status">대기</dd></div><div><dt>Competition Ratio</dt><dd id="ratio">NOT_CONFIGURED</dd></div></dl></section>
+    <section id="recent-completed-research-panel" class="research-seeds-panel" aria-live="polite"><div class="step-heading"><h2>최근 완료 조사</h2><span id="recent-completed-research-status" class="input-status">확인 중</span></div><p id="recent-completed-research-message" class="muted">완료된 Research Session을 조회하고 있습니다.</p><dl id="recent-completed-research-details" hidden><div><dt>Hub Topic</dt><dd id="recent-completed-research-title">NOT_AVAILABLE</dd></div><div><dt>Research Session</dt><dd id="recent-completed-research-session">NOT_AVAILABLE</dd></div><div><dt>Planner Decision Brief</dt><dd id="recent-completed-research-file">NOT_AVAILABLE</dd></div></dl><div class="seed-actions"><button id="open-recent-completed-research" type="button" disabled>최근 완료 조사 열기</button><button id="download-recent-completed-brief" type="button" disabled>Planner Decision Brief 다운로드</button></div></section>
     <section class="research-input-card" aria-labelledby="research-input-title">
       <p class="eyebrow">SEQUENTIAL RESEARCH INPUT</p>
       <h2 id="research-input-title">Research Context 입력</h2>
@@ -84,6 +85,13 @@
       <div class="summary-grid handoff-summary-grid"><div><span>Keywords</span><strong id="final-handoff-keywords">NOT_AVAILABLE</strong></div><div><span>Evidence</span><strong id="final-handoff-evidence">NOT_AVAILABLE</strong></div><div><span>Metrics</span><strong id="final-handoff-metrics">NOT_AVAILABLE</strong></div><div><span>Demand Clusters</span><strong id="final-handoff-clusters">NOT_AVAILABLE</strong></div><div><span>Representative Entrances</span><strong id="final-handoff-entrances">NOT_AVAILABLE</strong></div><div><span>Grounded Questions</span><strong id="final-handoff-questions">NOT_AVAILABLE</strong></div><div><span>REVIEW_REQUIRED Clusters</span><strong id="final-handoff-review-required">NOT_AVAILABLE</strong></div></div>
       <p id="final-handoff-coverage" class="muted">Coverage: NOT_AVAILABLE</p><p class="muted">REVIEW_REQUIRED는 Planner의 최종 판단 대기 상태이며 오류가 아닙니다. Overall PARTIAL은 일부 Evidence Coverage가 미수집 또는 부분 상태임을 의미합니다.</p>
       <div class="seed-actions"><button id="create-final-planner-handoff" type="button" disabled>Final Planner Handoff 생성</button><button id="load-final-planner-handoff" type="button" disabled>최신 Handoff 조회</button></div><p id="final-handoff-message" class="muted" role="status" aria-live="polite"></p>
+    </section>
+    <section id="planner-decision-brief-panel" class="research-seeds-panel" hidden>
+      <div class="step-heading"><h3>FINAL RESULT</h3><span id="planner-decision-brief-status" class="input-status">NOT_READY</span></div>
+      <p class="muted">Planner Decision Brief</p>
+      <p id="planner-decision-brief-filename" class="muted">아직 생성된 Planner Decision Brief가 없습니다.</p>
+      <button id="download-planner-decision-brief" type="button" disabled>Planner Decision Brief 다운로드</button>
+      <p id="planner-decision-brief-message" class="muted" role="status" aria-live="polite"></p>
     </section>
   </main><script type="module" src="/app.mjs?v=phase3-review"></script></body>
 </html>

@@ -16,6 +16,7 @@ import { readResearchSessionIntegration } from "../repositories/research-session
 import { readSearchDemandCompression } from "../repositories/search-demand-compression-repository.mjs";
 import { createFinalPlannerHandoff } from "../handoff/final-planner-handoff.mjs";
 import { readFinalPlannerHandoff } from "../repositories/final-planner-handoff-repository.mjs";
+import { readLatestPlannerDecisionBriefFile, listCompletedResearchSessions } from "../repositories/planner-decision-brief-repository.mjs";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { dataDirectory } from "../repositories/storage-paths.mjs";
@@ -141,6 +142,23 @@ export function getFollowUpResearchProjectionForSession(researchSessionId) {
 }
 
 export { RESEARCH_E2E_STATUS, runResearchSessionE2E };
+
+export function getLatestPlannerDecisionBriefFile(researchSessionId) {
+  return readLatestPlannerDecisionBriefFile(researchSessionId);
+}
+
+export async function getLatestPlannerDecisionBriefMetadata(researchSessionId) {
+  const brief = await readLatestPlannerDecisionBriefFile(researchSessionId);
+  return brief ? { version: brief.version, file_name: brief.fileName } : null;
+}
+
+export async function getLatestCompletedResearchSession() {
+  const [latest] = await listCompletedResearchSessions();
+  if (!latest) return null;
+  const contextArtifact = await readResearchSessionContext(latest.research_session_id);
+  const hubContext = contextArtifact?.context?.hub_context || contextArtifact?.hub_context || {};
+  return { ...latest, hub_title: hubContext.hub_title || hubContext.hub_topic || hubContext.hub_seed || null };
+}
 
 export async function createSessionEvidenceIntegration({ researchSessionId, targetResults, researchContext } = {}) {
   let contextResult = await readResearchSessionContext(researchSessionId);
